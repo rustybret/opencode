@@ -12,6 +12,7 @@ import { useRoute } from "@tui/context/route"
 import { useProject } from "@tui/context/project"
 import { useSync } from "@tui/context/sync"
 import { useEvent } from "@tui/context/event"
+import { useEditorContext } from "@tui/context/editor"
 import { MessageID, PartID } from "@/session/schema"
 import { createStore, produce, unwrap } from "solid-js/store"
 import { useKeybind } from "@tui/context/keybind"
@@ -94,6 +95,7 @@ export function Prompt(props: PromptProps) {
   const local = useLocal()
   const args = useArgs()
   const sdk = useSDK()
+  const editor = useEditorContext()
   const route = useRoute()
   const project = useProject()
   const sync = useSync()
@@ -109,6 +111,22 @@ export function Prompt(props: PromptProps) {
   const animationsEnabled = createMemo(() => kv.get("animations_enabled", true))
   const list = createMemo(() => props.placeholders?.normal ?? [])
   const shell = createMemo(() => props.placeholders?.shell ?? [])
+  const editorPath = createMemo(() => editor.selection()?.filePath)
+  const editorSelectionLabel = createMemo(() => {
+    const selection = editor.selection()?.selection
+    if (!selection) return
+    if (selection.start.line === selection.end.line && selection.start.character === selection.end.character) return
+    if (selection.start.line === selection.end.line) return `#${selection.start.line}`
+    return `#${selection.start.line}-${selection.end.line}`
+  })
+  const editorFileLabel = createMemo(() => {
+    const value = editorPath()
+    if (!value) return
+    const root = sync.path.directory || process.cwd()
+    const relative = path.relative(root, value)
+    const file = relative && !relative.startsWith("..") && !path.isAbsolute(relative) ? relative : value
+    return `${file.split(path.sep).join("/")}${editorSelectionLabel() ?? ""}`
+  })
   const [auto, setAuto] = createSignal<AutocompleteRef>()
   const currentProviderLabel = createMemo(() => local.model.parsed().provider)
   const hasRightContent = createMemo(() => Boolean(props.right))
@@ -721,6 +739,27 @@ export function Prompt(props: PromptProps) {
     // Capture mode before it gets reset
     const currentMode = store.mode
     const variant = local.model.variant.current()
+    const editorSelection = editor.selection()
+    const editorParts = editorSelection
+      ? [
+          {
+            id: PartID.ascending(),
+            type: "text" as const,
+            text: (() => {
+              const start = editorSelection.selection.start
+              const end = editorSelection.selection.end
+              if (start.line === end.line && start.character === end.character) {
+                return `Note: The user opened the file "${editorSelection.filePath}".`
+              }
+              if (start.line === end.line) {
+                return `Note: The user selected line ${start.line} from  "${editorSelection.filePath}": ${editorSelection.text}`
+              }
+              return `Note: The user selected lines ${start.line} to ${end.line} from "${editorSelection.filePath}": ${editorSelection.text}`
+            })(),
+            synthetic: true,
+          },
+        ]
+      : []
 
     if (store.mode === "shell") {
       void sdk.client.session.shell({
@@ -773,6 +812,7 @@ export function Prompt(props: PromptProps) {
           model: selectedModel,
           variant,
           parts: [
+            ...editorParts,
             {
               id: PartID.ascending(),
               type: "text",
@@ -1332,6 +1372,7 @@ export function Prompt(props: PromptProps) {
           </Show>
           <Show when={status().type !== "retry"}>
             <box gap={2} flexDirection="row">
+              <Show when={editorFileLabel()}>{(file) => <text fg={theme.warning}>{file()}</text>}</Show>
               <Switch>
                 <Match when={store.mode === "normal"}>
                   <Switch>
