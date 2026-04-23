@@ -1,5 +1,5 @@
 import { createStore } from "solid-js/store"
-import { createMemo, For, Match, Show, Switch } from "solid-js"
+import { batch, createMemo, For, Match, Show, Switch } from "solid-js"
 import { Portal, useKeyboard, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
 import type { TextareaRenderable } from "@opentui/core"
 import { useKeybind } from "../../context/keybind"
@@ -549,7 +549,7 @@ function RejectPrompt(props: { onConfirm: (message: string) => void; onCancel: (
   )
 }
 
-function Prompt<const T extends Record<string, string>>(props: {
+export function Prompt<const T extends Record<string, string>>(props: {
   title: string
   header?: JSX.Element
   body: JSX.Element
@@ -564,6 +564,7 @@ function Prompt<const T extends Record<string, string>>(props: {
   const keys = Object.keys(props.options) as (keyof T)[]
   const [store, setStore] = createStore({
     selected: keys[0],
+    hovered: undefined as keyof T | undefined,
     expanded: false,
   })
   const diffKey = Keybind.parse("ctrl+f")[0]
@@ -577,14 +578,20 @@ function Prompt<const T extends Record<string, string>>(props: {
       evt.preventDefault()
       const idx = keys.indexOf(store.selected)
       const next = keys[(idx - 1 + keys.length) % keys.length]
-      setStore("selected", next)
+      batch(() => {
+        setStore("selected", next)
+        setStore("hovered", undefined)
+      })
     }
 
     if (evt.name === "right" || evt.name == "l") {
       evt.preventDefault()
       const idx = keys.indexOf(store.selected)
       const next = keys[(idx + 1) % keys.length]
-      setStore("selected", next)
+      batch(() => {
+        setStore("selected", next)
+        setStore("hovered", undefined)
+      })
     }
 
     if (evt.name === "return") {
@@ -605,6 +612,7 @@ function Prompt<const T extends Record<string, string>>(props: {
   })
 
   const hint = createMemo(() => (store.expanded ? "minimize" : "fullscreen"))
+  const active = (option: keyof T) => option === (store.hovered ?? store.selected)
   useRenderer()
 
   const content = () => (
@@ -658,14 +666,18 @@ function Prompt<const T extends Record<string, string>>(props: {
               <box
                 paddingLeft={1}
                 paddingRight={1}
-                backgroundColor={option === store.selected ? theme.warning : theme.backgroundMenu}
-                onMouseOver={() => setStore("selected", option)}
+                backgroundColor={active(option) ? theme.warning : theme.backgroundMenu}
+                onMouseOver={() => setStore("hovered", option)}
+                onMouseOut={() => {
+                  if (store.hovered !== option) return
+                  setStore("hovered", undefined)
+                }}
                 onMouseUp={() => {
                   setStore("selected", option)
                   props.onSelect(option)
                 }}
               >
-                <text fg={option === store.selected ? selectedForeground(theme, theme.warning) : theme.textMuted}>
+                <text fg={active(option) ? selectedForeground(theme, theme.warning) : theme.textMuted}>
                   {props.options[option]}
                 </text>
               </box>
