@@ -6,6 +6,7 @@ import os from "node:os"
 import { Server } from "../../server/server"
 import { cmd } from "./cmd"
 import { withNetworkOptions, resolveNetworkOptions } from "../network"
+import { bootstrap } from "../bootstrap"
 import { Flag } from "../../flag/flag"
 import { Workspace } from "../../control-plane/workspace"
 import { Project } from "../../project"
@@ -217,7 +218,7 @@ export const ServeCommand = cmd({
       }),
   describe: "starts a headless opencode server",
   handler: async (args) => {
-    const opts = await resolveNetworkOptions(args)
+    const opts = await bootstrap(process.cwd(), () => resolveNetworkOptions(args))
     const relayURL = (
       args["relay-url"] ??
       process.env.OPENCODE_EXPERIMENTAL_PUSH_RELAY_URL ??
