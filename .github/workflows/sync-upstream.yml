@@ -1,0 +1,98 @@
+name: Sync Upstream
+
+# Two-branch fork model:
+#   dev        — clean mirror of upstream/dev (fast-forward only, never holds fork commits)
+#   fork/local — our thin customization layer, rebased on top of dev
+#
+# This workflow fast-forwards dev to the latest upstream, then rebases
+# fork/local on top. If the rebase hits conflicts, it stops and opens an issue
+# so a human can resolve them locally — it never force-resolves silently.
+
+on:
+  schedule:
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+    inputs:
+      upstream_branch:
+        description: "Upstream branch to mirror into dev"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - main
+          - master
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git + upstream remote
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/anomalyco/opencode.git
+          git fetch upstream
+          git fetch origin
+          echo "UPSTREAM_BRANCH=${{ inputs.upstream_branch || 'dev' }}" >> $GITHUB_ENV
+
+      - name: Fast-forward dev to upstream (clean mirror)
+        run: |
+          BRANCH="${{ env.UPSTREAM_BRANCH }}"
+          echo "Mirroring upstream/${BRANCH} into dev (fast-forward only)..."
+          git checkout -B dev "upstream/${BRANCH}"
+          git push origin dev --force-with-lease
+          echo "dev now mirrors upstream/${BRANCH}."
+
+      - name: Rebase fork/local onto updated dev
+        id: rebase
+        run: |
+          git checkout -B fork/local origin/fork/local
+          echo "Rebasing fork/local onto dev..."
+          if git rebase dev 2>&1; then
+            echo "result=clean" >> $GITHUB_OUTPUT
+          else
+            git rebase --abort || true
+            echo "result=conflict" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push rebased fork/local
+        if: steps.rebase.outputs.result == 'clean'
+        run: |
+          git submodule update --init --recursive 2>&1 || true
+          git push origin fork/local --force-with-lease
+          echo "fork/local rebased onto latest upstream and pushed."
+
+      - name: Open issue on rebase conflict
+        if: steps.rebase.outputs.result == 'conflict'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Upstream sync: fork/local rebase needs manual resolution`,
+              body: [
+                'The scheduled upstream sync fast-forwarded `dev` to the latest upstream,',
+                'but rebasing `fork/local` onto it hit conflicts.',
+                '',
+                'Resolve locally:',
+                '```bash',
+                'git fetch origin',
+                'git checkout fork/local',
+                'git rebase origin/dev',
+                '# resolve conflicts, then',
+                'git push origin fork/local --force-with-lease',
+                '```',
+              ].join('\n'),
+            })

@@ -1,0 +1,3 @@
+[submodule "submodules/pvrdrxtd"]
+	path = submodules/pvrdrxtd
+	url = https://github.com/rustybret/pvrdrxtd.git
