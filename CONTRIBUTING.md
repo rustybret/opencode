@@ -175,6 +175,55 @@ Some debug methods that can be problematic:
 
 With that said, you may want to try these methods, as they might work for you.
 
+## Fork Development
+
+> **This section applies only to the private fork (`rustybret/opencode`), not to upstream contributors.**
+
+### Branch model
+
+| Branch | Purpose |
+|--------|---------|
+| `dev` | Clean mirror of `upstream/dev`. Never commit here. |
+| `fork/local` | Customization layer rebased on top of `dev`. All work goes here. |
+
+### Syncing with upstream
+
+```bash
+git sync-upstream
+```
+
+This repo-local alias (`.git/config`) fetches upstream, fast-forwards `dev` to `upstream/dev`, pushes `origin/dev`, rebases `fork/local` onto `dev`, syncs submodules, runs `bun install`, then pushes `fork/local`. If the rebase conflicts the chain stops before the push — resolve manually, then `git rebase --continue` and re-run the push.
+
+### Building a standalone binary
+
+```bash
+./packages/opencode/script/build.ts --single
+# Output: packages/opencode/dist/opencode-<platform>/bin/opencode
+```
+
+Always typecheck first:
+
+```bash
+bun typecheck   # from packages/opencode — never tsc directly
+```
+
+### Release watcher (orw)
+
+`@cortexkit/orw` runs at `~/opencode-release-watch/` via launchd (every 30 min). It AI-merges `fork/local` onto each new upstream release using `claude-opus-4-8` and auto-installs to `~/.opencode/bin/opencode`.
+
+```bash
+# Manual build + verify
+cd ~/opencode-release-watch && bunx @cortexkit/orw check --force
+
+# Status
+bunx @cortexkit/orw status
+
+# Rollback
+~/opencode-release-watch/rollback.sh
+```
+
+Operator runbook: `agent-harness/docs/runbooks/OpenCode-Release-Watcher.md`
+
 ## Pull Request Expectations
 
 ### Issue First Policy

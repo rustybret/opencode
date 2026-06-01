@@ -2,6 +2,36 @@
 - The default branch in this repo is `dev`.
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
 
+## Fork Development
+
+This repo is a private fork of `anomalyco/opencode` using a **two-branch model**:
+
+- **`dev`** — clean mirror of `upstream/dev`. Never commit fork changes here. Updated via `git sync-upstream`.
+- **`fork/local`** — the customization layer. All local development happens here.
+
+### Syncing with upstream
+
+```bash
+git sync-upstream   # fetch upstream → FF dev → rebase fork/local → push both
+```
+
+The alias lives in `.git/config`. If `rebase` conflicts during the `fork/local` step the chain halts before pushing — resolve conflicts manually, then `git rebase --continue` and re-run the push.
+
+### Standalone build
+
+```bash
+./packages/opencode/script/build.ts --single
+# Output: packages/opencode/dist/opencode-<platform>/bin/opencode
+```
+
+Run `bun typecheck` from `packages/opencode` (never `tsc` directly) before building.
+
+### Release watcher (orw)
+
+`@cortexkit/orw` runs at `~/opencode-release-watch/` via launchd (30-min poll). On each new upstream release it AI-merges `fork/local` onto the release tag using `claude-opus-4-8`, builds a native CLI, and auto-installs to `~/.opencode/bin/opencode`. The Homebrew binary at `/opt/homebrew/bin/opencode` stays as a fallback.
+
+Operator runbook: `agent-harness/docs/runbooks/OpenCode-Release-Watcher.md`
+
 ## Commits and PR Titles
 
 Use conventional commit-style messages and PR titles: `type(scope): summary`.

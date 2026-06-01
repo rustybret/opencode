@@ -43,6 +43,50 @@
 
 ---
 
+## Fork
+
+> This is a private fork of [`anomalyco/opencode`](https://github.com/anomalyco/opencode) maintained on the `fork/local` branch. The `dev` branch is a clean mirror of upstream — never carry fork commits there.
+
+### Branch model
+
+```
+upstream/dev  ─────────────────────────────────►
+                                                 ↓
+origin/dev    ──── (clean mirror, FF-only) ──────►
+                                                 ↓
+fork/local    ──── our patches on top ───────────►
+```
+
+### Syncing with upstream
+
+```bash
+git sync-upstream
+```
+
+### Building from this fork
+
+```bash
+# Standalone native binary (canonical fork build)
+./packages/opencode/script/build.ts --single
+
+# Output
+packages/opencode/dist/opencode-<platform>/bin/opencode
+```
+
+### Automated release tracking (orw)
+
+Uses [`@cortexkit/orw`](https://github.com/cortexkit/orw) to stay current with upstream releases. Polls every 30 min, AI-merges `fork/local` onto each new release tag, builds a native CLI, and installs automatically.
+
+```bash
+# Manual check/build
+cd ~/opencode-release-watch && bunx @cortexkit/orw check --force
+
+# Rollback
+~/opencode-release-watch/rollback.sh
+```
+
+---
+
 ### Installation
 
 ```bash
