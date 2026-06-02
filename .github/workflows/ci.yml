@@ -16,8 +16,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_PAT || secrets.GITHUB_TOKEN }}
+          submodules: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure submodule credentials
+        run: |
+          if [ -n "${{ secrets.SUBMODULE_PAT }}" ]; then
+            git config --global url."https://${{ secrets.SUBMODULE_PAT }}@github.com/rustybret/pvrdrxtd".insteadOf \
+              "https://github.com/rustybret/pvrdrxtd"
+          fi
+          git submodule update --init --recursive 2>&1 || true
 
       - uses: ./.github/actions/setup-bun
 

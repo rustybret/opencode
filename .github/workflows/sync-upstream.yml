@@ -34,13 +34,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_PAT || secrets.GITHUB_TOKEN }}
+          submodules: false
+          # Use GITHUB_TOKEN (not SUBMODULE_PAT) so origin retains push access to opencode.
+          # SUBMODULE_PAT is injected separately via URL rewrite below for pvrdrxtd only.
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure git + upstream remote
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Route pvrdrxtd submodule clones through SUBMODULE_PAT without replacing the
+          # main origin credential (which must stay as GITHUB_TOKEN for push access).
+          if [ -n "${{ secrets.SUBMODULE_PAT }}" ]; then
+            git config --global url."https://${{ secrets.SUBMODULE_PAT }}@github.com/rustybret/pvrdrxtd".insteadOf \
+              "https://github.com/rustybret/pvrdrxtd"
+          fi
+          git submodule update --init --recursive 2>&1 || true
           git remote add upstream https://github.com/anomalyco/opencode.git
           git fetch upstream
           git fetch origin
