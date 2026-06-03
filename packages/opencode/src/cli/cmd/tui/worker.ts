@@ -71,6 +71,11 @@ export const rpc = {
     return result
   },
   async server(input: { port: number; hostname: string; mdns?: boolean; cors?: string[] }) {
+    // Apply AFT LSP patch before server starts (npm v11 regression workaround)
+    const aftPatch = Bun.spawnSync(["bash", `${import.meta.dir}/../../../../script/patch-aft-lsp.sh`])
+    if (aftPatch.exitCode !== 0) {
+      Log.Default.warn("aft-lsp patch failed", { stderr: new TextDecoder().decode(aftPatch.stderr) })
+    }
     if (server) await server.stop(true)
     server = await Server.listen(input)
     return { url: server.url.toString() }
