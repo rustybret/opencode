@@ -141,7 +141,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     event.subscribe((event, { workspace }) => {
       switch (event.type) {
         case "server.instance.disposed":
-          void bootstrap()
+          void bootstrap({ fatal: false })
           break
         case "permission.replied": {
           const requests = store.permission[event.properties.sessionID]
@@ -388,107 +388,128 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     const exit = useExit()
     const args = useArgs()
 
+    // fatal:false callers (dispose events) queue a trailing run so agents are fetched
+    // after plugin.init() completes, not during it.
+    let bootstrapInFlight: Promise<void> | undefined
+    let bootstrapQueued = false
+
     async function bootstrap(input: { fatal?: boolean } = {}) {
+      if (bootstrapInFlight) {
+        bootstrapQueued = true
+        return bootstrapInFlight
+      }
       const fatal = input.fatal ?? true
-      const workspace = project.workspace.current()
-      const projectPromise = project.sync()
-      const sessionListPromise = projectPromise.then(() => listSessions())
+      const run = async () => {
+        const workspace = project.workspace.current()
+        const projectPromise = project.sync()
+        const sessionListPromise = projectPromise.then(() => listSessions())
 
-      // blocking - include session.list when continuing a session
-      const providersPromise = sdk.client.config.providers({ workspace }, { throwOnError: true })
-      const providerListPromise = sdk.client.provider.list({ workspace }, { throwOnError: true })
-      const consoleStatePromise = sdk.client.experimental.console
-        .get({ workspace }, { throwOnError: true })
-        .then((x) => x.data)
-        .catch(() => emptyConsoleState)
-      const agentsPromise = sdk.client.app.agents({ workspace }, { throwOnError: true })
-      const configPromise = sdk.client.config.get({ workspace }, { throwOnError: true })
-      const blockingRequests: { name: string; promise: Promise<unknown> }[] = [
-        { name: "config.providers", promise: providersPromise },
-        { name: "provider.list", promise: providerListPromise },
-        { name: "app.agents", promise: agentsPromise },
-        { name: "config.get", promise: configPromise },
-        { name: "project.sync", promise: projectPromise },
-        ...(args.continue ? [{ name: "session.list", promise: sessionListPromise }] : []),
-      ]
+        // blocking - include session.list when continuing a session
+        const providersPromise = sdk.client.config.providers({ workspace }, { throwOnError: true })
+        const providerListPromise = sdk.client.provider.list({ workspace }, { throwOnError: true })
+        const consoleStatePromise = sdk.client.experimental.console
+          .get({ workspace }, { throwOnError: true })
+          .then((x) => x.data)
+          .catch(() => emptyConsoleState)
+        const agentsPromise = sdk.client.app.agents({ workspace }, { throwOnError: true })
+        const configPromise = sdk.client.config.get({ workspace }, { throwOnError: true })
+        const blockingRequests: { name: string; promise: Promise<unknown> }[] = [
+          { name: "config.providers", promise: providersPromise },
+          { name: "provider.list", promise: providerListPromise },
+          { name: "app.agents", promise: agentsPromise },
+          { name: "config.get", promise: configPromise },
+          { name: "project.sync", promise: projectPromise },
+          ...(args.continue ? [{ name: "session.list", promise: sessionListPromise }] : []),
+        ]
 
-      await Promise.allSettled(blockingRequests.map((r) => r.promise))
-        .then((settled) => {
-          // Surface every failed endpoint in one labeled message instead of
-          // letting the first rejection drown its siblings as unhandled
-          // rejections.
-          const failure = aggregateFailures(blockingRequests.map((r, i) => ({ name: r.name, result: settled[i] })))
-          if (failure) throw failure
-        })
-        .then(async () => {
-          const providersResponse = providersPromise.then((x) => x.data!)
-          const providerListResponse = providerListPromise.then((x) => x.data!)
-          const consoleStateResponse = consoleStatePromise
-          const agentsResponse = agentsPromise.then((x) => x.data ?? [])
-          const configResponse = configPromise.then((x) => x.data!)
-          const sessionListResponse = args.continue ? sessionListPromise : undefined
+        await Promise.allSettled(blockingRequests.map((r) => r.promise))
+          .then((settled) => {
+            // Surface every failed endpoint in one labeled message instead of
+            // letting the first rejection drown its siblings as unhandled
+            // rejections.
+            const failure = aggregateFailures(blockingRequests.map((r, i) => ({ name: r.name, result: settled[i] })))
+            if (failure) throw failure
+          })
+          .then(async () => {
+            const providersResponse = providersPromise.then((x) => x.data!)
+            const providerListResponse = providerListPromise.then((x) => x.data!)
+            const consoleStateResponse = consoleStatePromise
+            const agentsResponse = agentsPromise.then((x) => x.data ?? [])
+            const configResponse = configPromise.then((x) => x.data!)
+            const sessionListResponse = args.continue ? sessionListPromise : undefined
 
-          return Promise.all([
-            providersResponse,
-            providerListResponse,
-            consoleStateResponse,
-            agentsResponse,
-            configResponse,
-            ...(sessionListResponse ? [sessionListResponse] : []),
-          ]).then((responses) => {
-            const providers = responses[0]
-            const providerList = responses[1]
-            const consoleState = responses[2]
-            const agents = responses[3]
-            const config = responses[4]
-            const sessions = responses[5]
+            return Promise.all([
+              providersResponse,
+              providerListResponse,
+              consoleStateResponse,
+              agentsResponse,
+              configResponse,
+              ...(sessionListResponse ? [sessionListResponse] : []),
+            ]).then((responses) => {
+              const providers = responses[0]
+              const providerList = responses[1]
+              const consoleState = responses[2]
+              const agents = responses[3]
+              const config = responses[4]
+              const sessions = responses[5]
 
-            batch(() => {
-              setStore("provider", reconcile(providers.providers))
-              setStore("provider_default", reconcile(providers.default))
-              setStore("provider_next", reconcile(providerList))
-              setStore("console_state", reconcile(consoleState))
-              setStore("agent", reconcile(agents))
-              setStore("config", reconcile(config))
-              if (sessions !== undefined) setStore("session", reconcile(sessions))
+              batch(() => {
+                setStore("provider", reconcile(providers.providers))
+                setStore("provider_default", reconcile(providers.default))
+                setStore("provider_next", reconcile(providerList))
+                setStore("console_state", reconcile(consoleState))
+                setStore("agent", reconcile(agents))
+                setStore("config", reconcile(config))
+                if (sessions !== undefined) setStore("session", reconcile(sessions))
+              })
             })
           })
-        })
-        .then(() => {
-          if (store.status !== "complete") setStore("status", "partial")
-          // non-blocking
-          void Promise.all([
-            ...(args.continue ? [] : [sessionListPromise.then((sessions) => setStore("session", reconcile(sessions)))]),
-            consoleStatePromise.then((consoleState) => setStore("console_state", reconcile(consoleState))),
-            sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? []))),
-            sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", reconcile(x.data ?? []))),
-            sdk.client.mcp.status({ workspace }).then((x) => setStore("mcp", reconcile(x.data ?? {}))),
-            sdk.client.experimental.resource
-              .list({ workspace })
-              .then((x) => setStore("mcp_resource", reconcile(x.data ?? {}))),
-            sdk.client.formatter.status({ workspace }).then((x) => setStore("formatter", reconcile(x.data ?? []))),
-            sdk.client.session.status({ workspace }).then((x) => {
-              setStore("session_status", reconcile(x.data ?? {}))
-            }),
-            sdk.client.provider.auth({ workspace }).then((x) => setStore("provider_auth", reconcile(x.data ?? {}))),
-            sdk.client.vcs.get({ workspace }).then((x) => setStore("vcs", reconcile(x.data))),
-            project.workspace.sync(),
-          ]).then(() => {
-            setStore("status", "complete")
+          .then(() => {
+            if (store.status !== "complete") setStore("status", "partial")
+            // non-blocking
+            void Promise.all([
+              ...(args.continue
+                ? []
+                : [sessionListPromise.then((sessions) => setStore("session", reconcile(sessions)))]),
+              consoleStatePromise.then((consoleState) => setStore("console_state", reconcile(consoleState))),
+              sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? []))),
+              sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", reconcile(x.data ?? []))),
+              sdk.client.mcp.status({ workspace }).then((x) => setStore("mcp", reconcile(x.data ?? {}))),
+              sdk.client.experimental.resource
+                .list({ workspace })
+                .then((x) => setStore("mcp_resource", reconcile(x.data ?? {}))),
+              sdk.client.formatter.status({ workspace }).then((x) => setStore("formatter", reconcile(x.data ?? []))),
+              sdk.client.session.status({ workspace }).then((x) => {
+                setStore("session_status", reconcile(x.data ?? {}))
+              }),
+              sdk.client.provider.auth({ workspace }).then((x) => setStore("provider_auth", reconcile(x.data ?? {}))),
+              sdk.client.vcs.get({ workspace }).then((x) => setStore("vcs", reconcile(x.data))),
+              project.workspace.sync(),
+            ]).then(() => {
+              setStore("status", "complete")
+            })
           })
-        })
-        .catch(async (e) => {
-          Log.Default.error("tui bootstrap failed", {
-            error: e instanceof Error ? e.message : String(e),
-            name: e instanceof Error ? e.name : undefined,
-            stack: e instanceof Error ? e.stack : undefined,
+          .catch(async (e) => {
+            Log.Default.error("tui bootstrap failed", {
+              error: e instanceof Error ? e.message : String(e),
+              name: e instanceof Error ? e.name : undefined,
+              stack: e instanceof Error ? e.stack : undefined,
+            })
+            if (fatal) {
+              await exit(e)
+            } else {
+              throw e
+            }
           })
-          if (fatal) {
-            await exit(e)
-          } else {
-            throw e
-          }
-        })
+      }
+      bootstrapInFlight = run().finally(() => {
+        bootstrapInFlight = undefined
+        if (bootstrapQueued) {
+          bootstrapQueued = false
+          void bootstrap({ fatal: false })
+        }
+      })
+      return bootstrapInFlight
     }
 
     onMount(() => {

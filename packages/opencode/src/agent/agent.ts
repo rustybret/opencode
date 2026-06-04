@@ -90,6 +90,8 @@ export const layer = Layer.effect(
 
     const state = yield* InstanceState.make<State>(
       Effect.fn("Agent.state")(function* (ctx) {
+        // Must complete before config.get() so external plugin config hooks have merged their agent definitions.
+        yield* plugin.init()
         const cfg = yield* config.get()
         const skillDirs = yield* skill.dirs()
         const whitelistedDirs = [
