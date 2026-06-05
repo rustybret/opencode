@@ -312,7 +312,10 @@ for (const [sid, dbPath] of sessionMap) {
   const userTurns = turns.filter(t => t.role === "user").length
   if (userTurns < minTurns) { skipped++; continue }
 
-  appendFileSync(outputPath, JSON.stringify({ session_id: sid, messages: turnsToMessages(turns) }) + "\n")
+  const json = JSON.stringify({ session_id: sid, messages: turnsToMessages(turns) })
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029")
+  appendFileSync(outputPath, json + "\n")
   exported++
   process.stdout.write(`\rExported ${exported} sessions (${skipped} skipped)...`)
 }
