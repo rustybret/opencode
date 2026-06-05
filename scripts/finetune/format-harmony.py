@@ -86,9 +86,24 @@ def normalize_messages(messages: list[dict], max_tool_chars: int) -> list[dict]:
             continue
 
         if role == "assistant":
-            content = truncate_tool(content, max_tool_chars)
-            if content:
-                out.append({"role": "assistant", "content": content})
+            tool_calls = m.get("tool_calls")
+            if tool_calls:
+                for tc in tool_calls:
+                    fn = tc.get("function", {})
+                    out.append({
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [{
+                            "id": tc.get("id", "call_unknown"),
+                            "type": "function",
+                            "function": {
+                                "name": fn.get("name", "unknown_tool"),
+                                "arguments": truncate_tool(str(fn.get("arguments", "")), max_tool_chars),
+                            },
+                        }],
+                    })
+            elif content:
+                out.append({"role": "assistant", "content": truncate_tool(content, max_tool_chars)})
             continue
 
         if role == "tool":
@@ -131,10 +146,17 @@ def render_harmony_text(messages: list[dict], reasoning_effort: str = "medium") 
             lines.append(f"<|start|>user<|channel|>final<|message|>{content}<|end|>")
 
         elif role == "assistant":
-            is_last = i == last_assistant_idx
-            end_token = "<|return|>" if is_last else "<|end|>"
-            # Use 'analysis' channel for chain-of-thought, 'final' for answer
-            lines.append(f"<|start|>assistant<|channel|>final<|message|>{content}{end_token}")
+            tool_calls = m.get("tool_calls")
+            if tool_calls:
+                for tc in tool_calls:
+                    fn = tc.get("function", {})
+                    name = fn.get("name", "unknown_tool")
+                    arguments = fn.get("arguments", "")
+                    lines.append(f"<|start|>assistant<|channel|>commentary to=functions.{name} <|constrain|>json<|message|>{arguments}<|call|>")
+            else:
+                is_last = i == last_assistant_idx
+                end_token = "<|return|>" if is_last else "<|end|>"
+                lines.append(f"<|start|>assistant<|channel|>final<|message|>{content}{end_token}")
 
         elif role == "tool":
             name = m.get("name", "tool")
