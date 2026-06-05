@@ -46,18 +46,24 @@ DEFAULT_SYSTEM = (
     "# Valid channels: analysis, commentary, final"
 )
 
+def sanitize(text: str) -> str:
+    return "".join(
+        c for c in text.replace("\x00", "")
+        if c >= " " or c in "\n\r\t"
+    ).encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+
 def truncate_tool(content: str, max_chars: int) -> str:
+    content = sanitize(content)
     if len(content) <= max_chars:
         return content
     half = max_chars // 2
     return content[:half] + f"\n... [truncated {len(content) - max_chars} chars] ...\n" + content[-half:]
 
 def normalize_messages(messages: list[dict], max_tool_chars: int) -> list[dict]:
-    """Normalize opencode message format to clean OpenAI chat format."""
     out = []
     for m in messages:
         role = m.get("role", "")
-        content = m.get("content", "")
+        content = sanitize(str(m.get("content") or ""))
 
         if role == "system":
             out.append({"role": "system", "content": content})
@@ -69,13 +75,14 @@ def normalize_messages(messages: list[dict], max_tool_chars: int) -> list[dict]:
             continue
 
         if role == "assistant":
+            content = truncate_tool(content, max_tool_chars)
             if content:
                 out.append({"role": "assistant", "content": content})
             continue
 
         if role == "tool":
             truncated = truncate_tool(content, max_tool_chars)
-            entry = {"role": "tool", "content": truncated}
+            entry: dict = {"role": "tool", "content": truncated}
             if m.get("tool_call_id"):
                 entry["tool_call_id"] = m["tool_call_id"]
             if m.get("name"):
@@ -183,11 +190,23 @@ def main() -> None:
             if not line.strip():
                 continue
             session = json.loads(line)
-            result = format_session(session, args)
+            try:
+                result = format_session(session, args)
+            except Exception as e:
+                print(f"\n  Warning: skipping session {session.get('session_id','?')}: {e}", file=sys.stderr)
+                skipped += 1
+                continue
             if result is None:
                 skipped += 1
                 continue
-            out.write(json.dumps(result) + "\n")
+            try:
+                line = json.dumps(result, ensure_ascii=False)
+                json.loads(line)
+                out.write(line + "\n")
+            except (TypeError, ValueError) as e:
+                print(f"\n  Warning: JSON encode failed for session {session.get('session_id','?')}: {e}", file=sys.stderr)
+                skipped += 1
+                continue
             exported += 1
             print(f"\rConverted {exported} sessions ({skipped} skipped)...", end="", flush=True)
 
