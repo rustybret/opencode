@@ -109,7 +109,7 @@ interface McTag {
   tag_number: number; drop_mode: string; tool_name: string | null
   byte_size: number; reasoning_byte_size: number; caveman_depth: number
 }
-interface SourceContent { id: number; content: string }
+interface SourceContent { tag_id: number; content: string }
 interface Compartment { sequence: number; title: string; content: string; start_message_id: string; end_message_id: string }
 
 interface Turn {
@@ -164,9 +164,9 @@ function extractSession(ocDb: Database, sid: string): Turn[] | null {
   if (includeDropped && droppedTagIds.size > 0) {
     const ids = [...droppedTagIds].join(",")
     const rows = mcDb.query<SourceContent, []>(
-      `SELECT id, content FROM source_contents WHERE session_id = '${sid}' AND id IN (${ids})`
+      `SELECT tag_id, content FROM source_contents WHERE session_id = '${sid}' AND tag_id IN (${ids})`
     ).all()
-    for (const r of rows) sourceMap.set(r.id, r.content)
+    for (const r of rows) sourceMap.set(r.tag_id, r.content)
   }
 
   // Load compartments (historian summaries of pruned history)
