@@ -35,6 +35,14 @@ def parse_args():
     p.add_argument("--max-tool-chars", type=int, default=4000)
     p.add_argument("--max-output-chars", type=int, default=131072)
     p.add_argument("--system-prompt", default=None)
+    p.add_argument("--agent", action="append", metavar="NAME",
+                   help="Include only sessions with this agent (repeatable)")
+    p.add_argument("--exclude-agent", action="append", metavar="NAME",
+                   help="Exclude sessions with this agent (repeatable)")
+    p.add_argument("--model-family", action="append", metavar="PREFIX",
+                   help="Include only sessions whose model starts with PREFIX (repeatable)")
+    p.add_argument("--stats", action="store_true",
+                   help="Print dataset stats by agent/model and exit without writing output")
     p.add_argument("--help", action="store_true")
     return p.parse_args()
 
@@ -183,14 +191,53 @@ def main() -> None:
 
     output_path = Path(args.output)
 
+    agent_include = set(args.agent) if args.agent else None
+    agent_exclude = set(args.exclude_agent) if args.exclude_agent else set()
+    model_prefixes = args.model_family or []
+
+    if args.stats:
+        from collections import Counter
+        by_agent: Counter = Counter()
+        by_model: Counter = Counter()
+        total = 0
+        for raw in input_path.open(encoding="utf-8"):
+            if not raw.strip():
+                continue
+            s = json.loads(raw)
+            by_agent[s.get("agent") or "unknown"] += 1
+            by_model[s.get("model") or "unknown"] += 1
+            total += 1
+        print(f"Total sessions: {total}\n")
+        print("By agent:")
+        for k, v in by_agent.most_common():
+            print(f"  {k or 'unknown':<35} {v}")
+        print("\nBy model:")
+        for k, v in by_model.most_common():
+            print(f"  {k or 'unknown':<55} {v}")
+        sys.exit(0)
+
     exported = 0
     skipped = 0
 
     with output_path.open("w") as out:
-        for line in input_path.read_text().splitlines():
-            if not line.strip():
+        for raw in input_path.open(encoding="utf-8"):
+            if not raw.strip():
                 continue
-            session = json.loads(line)
+            session = json.loads(raw)
+
+            agent = session.get("agent") or ""
+            model = session.get("model") or ""
+
+            if agent_include and agent not in agent_include:
+                skipped += 1
+                continue
+            if agent in agent_exclude:
+                skipped += 1
+                continue
+            if model_prefixes and not any(model.startswith(p) for p in model_prefixes):
+                skipped += 1
+                continue
+
             try:
                 result = format_session(session, args)
             except Exception as e:
@@ -201,8 +248,8 @@ def main() -> None:
                 skipped += 1
                 continue
             try:
-                line = json.dumps(result, ensure_ascii=True)
-                out.write(line + "\n")
+                out_line = json.dumps(result, ensure_ascii=True)
+                out.write(out_line + "\n")
             except (TypeError, ValueError) as e:
                 print(f"\n  Warning: JSON encode failed for session {session.get('session_id','?')}: {e}", file=sys.stderr)
                 skipped += 1
@@ -212,7 +259,7 @@ def main() -> None:
 
     print(f"\nDone. {exported} sessions → {output_path}")
     if skipped:
-        print(f"  Skipped {skipped} sessions (missing user+assistant turns)")
+        print(f"  Skipped {skipped} sessions")
     print()
     print("To load in Unsloth:")
     print("  from datasets import load_dataset")

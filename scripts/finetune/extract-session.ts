@@ -102,6 +102,7 @@ if (listOnly) {
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
+interface OcSession { id: string; title: string; agent: string; time_created: number; project_id: string }
 interface OcMessage { id: string; role: string; time_created: number }
 interface OcPart { id: string; message_id: string; type: string; data: string }
 interface McTag {
@@ -304,6 +305,14 @@ for (const [sid, dbPath] of sessionMap) {
   const ocDb = openDb(dbPath)
   if (!ocDb) { skipped++; continue }
 
+  let meta: OcSession | null = null
+  try {
+    const cols = ocDb.query<{ name: string }, []>("PRAGMA table_info(session)").all().map(r => r.name)
+    const select = ["id", "title", "agent", "time_created", "project_id"]
+      .filter(c => cols.includes(c)).join(", ")
+    meta = ocDb.query<OcSession, [string]>(`SELECT ${select} FROM session WHERE id = ? LIMIT 1`).get(sid)
+  } catch { /* older schema — skip meta */ }
+
   const turns = extractSession(ocDb, sid)
   ocDb.close()
 
@@ -312,7 +321,14 @@ for (const [sid, dbPath] of sessionMap) {
   const userTurns = turns.filter(t => t.role === "user").length
   if (userTurns < minTurns) { skipped++; continue }
 
-  const json = JSON.stringify({ session_id: sid, messages: turnsToMessages(turns) })
+  const record = {
+    session_id: sid,
+    agent: meta?.agent ?? null,
+    title: meta?.title ?? null,
+    time_created: meta?.time_created ?? null,
+    messages: turnsToMessages(turns),
+  }
+  const json = JSON.stringify(record)
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029")
   appendFileSync(outputPath, json + "\n")
