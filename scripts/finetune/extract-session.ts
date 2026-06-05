@@ -43,6 +43,8 @@ const outputPath = getArg("--output") ?? "./sessions.jsonl"
 const includeDropped = !hasFlag("--no-dropped")
 const includeCompartments = !hasFlag("--no-compartments")
 const listOnly = hasFlag("--list")
+const chunkSize = parseInt(getArg("--chunk-size") ?? "0")
+const overlapSize = parseInt(getArg("--overlap") ?? "10")
 
 if (!sessionId && !extractAll && !listOnly) {
   console.error("Usage: bun extract-session.ts --session <id> | --all | --list")
@@ -114,7 +116,7 @@ interface SourceContent { tag_id: number; content: string }
 interface Compartment { sequence: number; title: string; content: string; start_message_id: string; end_message_id: string }
 
 interface Turn {
-  role: "user" | "assistant" | "tool" | "compartment"
+  role: "user" | "assistant" | "tool_call" | "tool" | "compartment"
   content: string
   tool_name?: string
   tool_call_id?: string
@@ -219,18 +221,24 @@ function extractSession(ocDb: Database, sid: string): Turn[] | null {
         if (p.type === "text" && d.text) textContent += d.text
         if (p.type === "reasoning" && d.text) reasoning += d.text
         if (p.type === "tool") {
+          const toolName = d.tool ?? "unknown_tool"
+          const callId = d.callID ?? d.id ?? undefined
+
+          // Emit the call side first (<|call|> token in Harmony)
+          if (d.state?.input !== undefined) {
+            let callArgs: string
+            try { callArgs = typeof d.state.input === "string" ? d.state.input : JSON.stringify(d.state.input) }
+            catch { callArgs = String(d.state.input) }
+            turns.push({ role: "tool_call", content: callArgs, tool_name: toolName, tool_call_id: callId, status })
+          }
+
+          // Emit the result side (<|end|> token in Harmony)
           const toolOutput = d.state?.output
           if (toolOutput !== undefined) {
             let output: string
             try { output = typeof toolOutput === "string" ? toolOutput : JSON.stringify(toolOutput) }
             catch { output = String(toolOutput) }
-            turns.push({
-              role: "tool",
-              content: output,
-              tool_name: d.tool ?? undefined,
-              tool_call_id: d.callID ?? d.id ?? undefined,
-              status,
-            })
+            turns.push({ role: "tool", content: output, tool_name: toolName, tool_call_id: callId, status })
           }
         }
       }
@@ -259,6 +267,18 @@ function turnsToMessages(turns: Turn[]) {
       messages.push({ role: "system", content: t.content, _source: "compartment" })
       continue
     }
+    if (t.role === "tool_call") {
+      messages.push({
+        role: "assistant",
+        content: null,
+        tool_calls: [{
+          id: t.tool_call_id ?? "call_unknown",
+          type: "function",
+          function: { name: t.tool_name ?? "unknown_tool", arguments: t.content },
+        }],
+      })
+      continue
+    }
     if (t.role === "tool") {
       messages.push({
         role: "tool",
@@ -271,6 +291,22 @@ function turnsToMessages(turns: Turn[]) {
     messages.push({ role: t.role, content: t.content })
   }
   return messages
+}
+
+// Chunk a long message list into overlapping windows for fine-tuning.
+// Each chunk contains chunkSize turns with overlapSize turns of leading context
+// from the previous chunk so tool-call/result pairs stay together.
+function chunkMessages(messages: Record<string, unknown>[], chunkSize: number, overlapSize: number) {
+  if (messages.length <= chunkSize) return [messages]
+  const chunks: (typeof messages)[] = []
+  let i = 0
+  while (i < messages.length) {
+    const start = i === 0 ? 0 : Math.max(0, i - overlapSize)
+    const end = Math.min(messages.length, i + chunkSize)
+    chunks.push(messages.slice(start, end))
+    i += chunkSize
+  }
+  return chunks
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────
@@ -306,11 +342,19 @@ for (const [sid, dbPath] of sessionMap) {
   if (!ocDb) { skipped++; continue }
 
   let meta: OcSession | null = null
+  let modelId: string | null = null
+  let providerId: string | null = null
   try {
     const cols = ocDb.query<{ name: string }, []>("PRAGMA table_info(session)").all().map(r => r.name)
     const select = ["id", "title", "agent", "time_created", "project_id"]
       .filter(c => cols.includes(c)).join(", ")
     meta = ocDb.query<OcSession, [string]>(`SELECT ${select} FROM session WHERE id = ? LIMIT 1`).get(sid)
+    // Model info lives in assistant message data, not the session row
+    const modelRow = ocDb.query<{ modelID: string | null; providerID: string | null }, [string]>(
+      "SELECT json_extract(data,'$.modelID') as modelID, json_extract(data,'$.providerID') as providerID FROM message WHERE session_id = ? AND json_extract(data,'$.role') = 'assistant' LIMIT 1"
+    ).get(sid)
+    modelId = modelRow?.modelID ?? null
+    providerId = modelRow?.providerID ?? null
   } catch { /* older schema — skip meta */ }
 
   const turns = extractSession(ocDb, sid)
@@ -321,19 +365,26 @@ for (const [sid, dbPath] of sessionMap) {
   const userTurns = turns.filter(t => t.role === "user").length
   if (userTurns < minTurns) { skipped++; continue }
 
-  const record = {
-    session_id: sid,
-    agent: meta?.agent ?? null,
-    title: meta?.title ?? null,
-    time_created: meta?.time_created ?? null,
-    messages: turnsToMessages(turns),
+  const messages = turnsToMessages(turns)
+  const chunks = chunkSize > 0 ? chunkMessages(messages, chunkSize, overlapSize) : [messages]
+
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const record = {
+      session_id: sid,
+      chunk: chunks.length > 1 ? ci : undefined,
+      agent: meta?.agent ?? null,
+      model: modelId ? `${providerId ?? ""}/${modelId}`.replace(/^\//, "") : null,
+      title: meta?.title ?? null,
+      time_created: meta?.time_created ?? null,
+      messages: chunks[ci],
+    }
+    const json = JSON.stringify(record)
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029")
+    appendFileSync(outputPath, json + "\n")
+    exported++
   }
-  const json = JSON.stringify(record)
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029")
-  appendFileSync(outputPath, json + "\n")
-  exported++
-  process.stdout.write(`\rExported ${exported} sessions (${skipped} skipped)...`)
+  process.stdout.write(`\rExported ${exported} records (${skipped} skipped)...`)
 }
 
 console.log(`\nDone. ${exported} sessions → ${outputPath}`)
