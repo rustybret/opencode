@@ -33,6 +33,7 @@ def parse_args():
                    choices=["low", "medium", "high"])
     p.add_argument("--raw-text", action="store_true")
     p.add_argument("--max-tool-chars", type=int, default=4000)
+    p.add_argument("--max-output-chars", type=int, default=131072)
     p.add_argument("--system-prompt", default=None)
     p.add_argument("--help", action="store_true")
     return p.parse_args()
@@ -136,7 +137,6 @@ def format_session(session: dict, args) -> dict | None:
     if not messages:
         return None
 
-    # Inject system prompt if not present
     if not messages or messages[0].get("role") != "system":
         system_content = DEFAULT_SYSTEM
         if args.system_prompt:
@@ -145,7 +145,6 @@ def format_session(session: dict, args) -> dict | None:
 
     clean = normalize_messages(messages, args.max_tool_chars)
 
-    # Must have at least one user + one assistant turn
     has_user = any(m["role"] == "user" for m in clean)
     has_asst = any(m["role"] == "assistant" for m in clean)
     if not has_user or not has_asst:
@@ -153,9 +152,10 @@ def format_session(session: dict, args) -> dict | None:
 
     if args.raw_text:
         text = render_harmony_text(clean, args.reasoning_effort)
+        if len(text) > args.max_output_chars:
+            return None
         return {"text": text}
 
-    # Use unsloth_zoo if available; otherwise fall back to raw text
     try:
         from unsloth_zoo import encode_conversations_with_harmony  # type: ignore
         encoded = encode_conversations_with_harmony(
@@ -163,9 +163,10 @@ def format_session(session: dict, args) -> dict | None:
             reasoning_effort=args.reasoning_effort,
             add_generation_prompt=False,
         )
+        if len(encoded) > args.max_output_chars:
+            return None
         return {"text": encoded}
     except ImportError:
-        # unsloth_zoo not installed — emit messages array for offline encoding
         return {"messages": clean}
 
 def main() -> None:
@@ -200,8 +201,7 @@ def main() -> None:
                 skipped += 1
                 continue
             try:
-                line = json.dumps(result, ensure_ascii=False)
-                json.loads(line)
+                line = json.dumps(result, ensure_ascii=True)
                 out.write(line + "\n")
             except (TypeError, ValueError) as e:
                 print(f"\n  Warning: JSON encode failed for session {session.get('session_id','?')}: {e}", file=sys.stderr)
