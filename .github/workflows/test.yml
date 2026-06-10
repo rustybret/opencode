@@ -131,13 +131,11 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright-version.outputs.version }}-chromium
 
       - name: Install Playwright system dependencies
-        # sudo required for apt-get; use node directly to avoid bunx PATH issues under sudo
         run: sudo node packages/app/node_modules/.bin/playwright install-deps chromium
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        # Use node directly — bunx hangs on GHA runners during binary download
-        run: timeout 180 node packages/app/node_modules/.bin/playwright install chromium
+        run: node packages/app/node_modules/.bin/playwright install chromium --only-shell
 
       - name: Run app e2e tests
         run: bun --cwd packages/app test:e2e:local
