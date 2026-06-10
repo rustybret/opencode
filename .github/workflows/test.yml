@@ -117,10 +117,8 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
-      - name: Verify system Chromium and ffmpeg
-        run: |
-          chromium-browser --version || chromium --version || which chromium-browser || which chromium
-          ffmpeg -version 2>/dev/null || sudo apt-get install -y ffmpeg
+      - name: Verify system Chromium
+        run: chromium-browser --version || chromium --version || which chromium-browser || which chromium
 
       - name: Run app e2e tests
         run: bun --cwd packages/app test:e2e:local
