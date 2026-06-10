@@ -44,7 +44,13 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // Required for headless Chromium on Linux CI runners (no GPU, no sandbox)
+        launchOptions: process.env.CI
+          ? { args: ["--no-sandbox", "--disable-gpu", "--disable-setuid-sandbox", "--disable-dev-shm-usage"] }
+          : {},
+      },
     },
   ],
 })
