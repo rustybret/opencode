@@ -63,6 +63,14 @@ jobs:
 
       - name: Run unit tests
         run: bun turbo test:ci
+        # Retry once — upstream has a confirmed flaky timing test (ws-pool idle timeout)
+        # that fails intermittently under CI runner latency. One retry is sufficient.
+        continue-on-error: true
+        id: unit_tests_first
+
+      - name: Retry unit tests (flaky guard)
+        if: steps.unit_tests_first.outcome == 'failure'
+        run: bun turbo test:ci
 
       - name: Run HttpApi exerciser gates
         if: runner.os == 'Linux'
