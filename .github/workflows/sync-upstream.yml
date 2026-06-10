@@ -87,8 +87,22 @@ jobs:
         if: steps.rebase.outputs.result == 'conflict'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
-          gh api repos/${{ github.repository }}/issues \
+          BODY=$(cat <<'EOF'
+          The scheduled upstream sync fast-forwarded `dev` to the latest upstream, but rebasing `fork/local` onto it hit conflicts.
+
+          Resolve locally:
+          ```bash
+          git fetch origin
+          git checkout fork/local
+          git rebase origin/dev
+          # resolve conflicts, then
+          git push origin fork/local --force-with-lease
+          ```
+          EOF
+          )
+          gh api "repos/${REPO}/issues" \
             --method POST \
             --field title="Upstream sync: fork/local rebase needs manual resolution" \
-            --field body="The scheduled upstream sync fast-forwarded \`dev\` to the latest upstream, but rebasing \`fork/local\` onto it hit conflicts.\n\nResolve locally:\n\`\`\`bash\ngit fetch origin\ngit checkout fork/local\ngit rebase origin/dev\n# resolve conflicts, then\ngit push origin fork/local --force-with-lease\n\`\`\`"
+            --field "body=${BODY}"
