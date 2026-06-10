@@ -132,10 +132,14 @@ jobs:
           path: ${{ github.workspace }}/.playwright-browsers
           key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright-version.outputs.version }}-chromium
 
-      - name: Install Playwright browsers (with system deps)
+      - name: Install Playwright system dependencies
+        working-directory: packages/app
+        run: sudo bunx playwright install-deps chromium
+
+      - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: packages/app
-        run: bunx playwright install --with-deps chromium
+        run: bunx playwright install chromium
 
       - name: Run app e2e tests
         run: bun --cwd packages/app test:e2e:local
