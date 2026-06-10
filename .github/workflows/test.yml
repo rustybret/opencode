@@ -134,7 +134,7 @@ jobs:
 
       - name: Install Playwright system dependencies
         working-directory: packages/app
-        run: sudo bunx playwright install-deps chromium
+        run: sudo $(which bunx) playwright install-deps chromium
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
