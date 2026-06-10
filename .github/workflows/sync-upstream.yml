@@ -85,24 +85,10 @@ jobs:
 
       - name: Open issue on rebase conflict
         if: steps.rebase.outputs.result == 'conflict'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `Upstream sync: fork/local rebase needs manual resolution`,
-              body: [
-                'The scheduled upstream sync fast-forwarded `dev` to the latest upstream,',
-                'but rebasing `fork/local` onto it hit conflicts.',
-                '',
-                'Resolve locally:',
-                '```bash',
-                'git fetch origin',
-                'git checkout fork/local',
-                'git rebase origin/dev',
-                '# resolve conflicts, then',
-                'git push origin fork/local --force-with-lease',
-                '```',
-              ].join('\n'),
-            })
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api repos/${{ github.repository }}/issues \
+            --method POST \
+            --field title="Upstream sync: fork/local rebase needs manual resolution" \
+            --field body="The scheduled upstream sync fast-forwarded \`dev\` to the latest upstream, but rebasing \`fork/local\` onto it hit conflicts.\n\nResolve locally:\n\`\`\`bash\ngit fetch origin\ngit checkout fork/local\ngit rebase origin/dev\n# resolve conflicts, then\ngit push origin fork/local --force-with-lease\n\`\`\`"
