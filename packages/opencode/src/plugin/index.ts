@@ -293,7 +293,12 @@ export const layer = Layer.effect(
       for (const hook of s.hooks) {
         const fn = hook[name] as any
         if (!fn) continue
-        yield* Effect.promise(async () => fn(input, output))
+        yield* Effect.tryPromise({
+          try: async () => fn(input, output),
+          catch: (err) => {
+            log.error("plugin hook failed", { hook: name, error: errorMessage(err) })
+          },
+        }).pipe(Effect.ignore)
       }
       return output
     })
