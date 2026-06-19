@@ -16,7 +16,7 @@ import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
-import { Cause, Effect, Option, Schema, Scope } from "effect"
+import { Cause, Effect, Exit, Option, Schema, Scope } from "effect"
 import * as Stream from "effect/Stream"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiError, HttpApiSchema } from "effect/unstable/httpapi"
@@ -295,15 +295,31 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof PromptPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
-      const message = yield* promptSvc
-        .prompt({
-          ...ctx.payload,
-          sessionID: ctx.params.sessionID,
-        })
-        .pipe(Effect.mapError(() => new HttpApiError.BadRequest({})))
-      return HttpServerResponse.stream(Stream.make(JSON.stringify(message)).pipe(Stream.encodeText), {
-        contentType: "application/json",
-      })
+      const exit = yield* promptSvc
+        .prompt({ ...ctx.payload, sessionID: ctx.params.sessionID })
+        .pipe(Effect.exit)
+      if (Exit.isSuccess(exit)) {
+        return HttpServerResponse.stream(
+          Stream.make(JSON.stringify(exit.value)).pipe(Stream.encodeText),
+          { contentType: "application/json" },
+        )
+      }
+      const cause = exit.cause
+      if (!Cause.hasInterruptsOnly(cause)) {
+        yield* Effect.logError("prompt failed").pipe(
+          Effect.annotateLogs({ sessionID: ctx.params.sessionID, cause }),
+        )
+        if (!Cause.hasDies(cause)) {
+          const err = Cause.squash(cause)
+          yield* events.publish(Session.Event.Error, {
+            sessionID: ctx.params.sessionID,
+            error: new NamedError.Unknown({
+              message: err instanceof Error ? err.message : String(err),
+            }).toObject(),
+          })
+        }
+      }
+      return yield* Effect.fail(new HttpApiError.BadRequest({}))
     })
 
     const promptAsync = Effect.fn("SessionHttpApi.promptAsync")(function* (ctx: {
@@ -341,9 +357,26 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof CommandPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
-      return yield* promptSvc
+      const exit = yield* promptSvc
         .command({ ...ctx.payload, sessionID: ctx.params.sessionID })
-        .pipe(Effect.mapError(() => new HttpApiError.BadRequest({})))
+        .pipe(Effect.exit)
+      if (Exit.isSuccess(exit)) return exit.value
+      const cause = exit.cause
+      if (!Cause.hasInterruptsOnly(cause)) {
+        yield* Effect.logError("command failed").pipe(
+          Effect.annotateLogs({ sessionID: ctx.params.sessionID, cause }),
+        )
+        if (!Cause.hasDies(cause)) {
+          const err = Cause.squash(cause)
+          yield* events.publish(Session.Event.Error, {
+            sessionID: ctx.params.sessionID,
+            error: new NamedError.Unknown({
+              message: err instanceof Error ? err.message : String(err),
+            }).toObject(),
+          })
+        }
+      }
+      return yield* Effect.fail(new HttpApiError.BadRequest({}))
     })
 
     const shell = Effect.fn("SessionHttpApi.shell")(function* (ctx: {

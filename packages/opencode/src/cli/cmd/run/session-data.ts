@@ -1096,7 +1096,10 @@ export function reduceSessionData(input: SessionDataInput): SessionDataOutput {
   }
 
   if (event.type === "session.error") {
-    if (event.properties.sessionID !== input.sessionID || !event.properties.error) {
+    if (
+      (event.properties.sessionID !== undefined && event.properties.sessionID !== input.sessionID) ||
+      !event.properties.error
+    ) {
       return out(data, commits)
     }
 

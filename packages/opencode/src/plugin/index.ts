@@ -257,11 +257,23 @@ export const layer = Layer.effect(
 
         const unsubscribe = yield* events.listen((event) => {
           if (event.location?.directory !== ctx.directory) return Effect.void
-          return Effect.sync(() => {
-            for (const hook of hooks) {
-              void hook["event"]?.({ event: { id: event.id, type: event.type, properties: event.data } as any })
-            }
-          })
+          return Effect.forEach(
+            hooks,
+            (hook) => {
+              const fn = hook["event"]
+              if (!fn) return Effect.void
+              return Effect.tryPromise({
+                try: () =>
+                  Promise.resolve(
+                    fn({ event: { id: event.id, type: event.type, properties: event.data } as any }),
+                  ),
+                catch: (err) => {
+                  log.error("plugin event hook failed", { error: errorMessage(err) })
+                },
+              }).pipe(Effect.timeout("5 seconds"), Effect.ignore)
+            },
+            { discard: true },
+          )
         })
         yield* Effect.addFinalizer(() => unsubscribe)
 

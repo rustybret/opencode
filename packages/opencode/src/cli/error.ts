@@ -1,3 +1,4 @@
+import { Cause } from "effect"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { errorFormat } from "@/util/error"
 import { isRecord } from "@/util/record"
@@ -32,7 +33,14 @@ function configIssues(input: Record<string, unknown>): ConfigIssue[] {
     : []
 }
 
+const FiberFailureCauseId = Symbol.for("effect/FiberFailure")
+
 export function FormatError(input: unknown): string | undefined {
+  if (typeof input === "object" && input !== null && FiberFailureCauseId in input) {
+    const cause = (input as Record<symbol, unknown>)[FiberFailureCauseId] as Cause.Cause<unknown>
+    return FormatError(Cause.squash(cause))
+  }
+
   if (input instanceof Error && isRecord(input.cause) && "body" in input.cause) {
     const formatted = FormatError(input.cause.body)
     if (formatted) return formatted
