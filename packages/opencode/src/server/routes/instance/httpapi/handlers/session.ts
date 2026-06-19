@@ -314,12 +314,20 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* promptSvc.prompt({ ...ctx.payload, sessionID: ctx.params.sessionID }).pipe(
         Effect.catchCause((cause) =>
           Effect.gen(function* () {
+            if (Cause.hasInterruptsOnly(cause)) return
             yield* Effect.logError("prompt_async failed").pipe(
               Effect.annotateLogs({ sessionID: ctx.params.sessionID, cause }),
             )
+            // Die causes are pre-announced by the throwing code (e.g. getModel,
+            // createUserMessage) before calling Effect.die — skip the TUI event
+            // to avoid double-publish and raw minified-source stack traces.
+            if (Cause.hasDies(cause)) return
+            const err = Cause.squash(cause)
             yield* events.publish(Session.Event.Error, {
               sessionID: ctx.params.sessionID,
-              error: new NamedError.Unknown({ message: Cause.pretty(cause) }).toObject(),
+              error: new NamedError.Unknown({
+                message: err instanceof Error ? err.message : String(err),
+              }).toObject(),
             })
           }),
         ),

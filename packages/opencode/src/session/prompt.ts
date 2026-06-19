@@ -363,7 +363,7 @@ export const layer = Layer.effect(
         const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
         const error = new NamedError.Unknown({ message: `Agent not found: "${task.agent}".${hint}` })
         yield* events.publish(Session.Event.Error, { sessionID, error: error.toObject() })
-        throw error
+        return yield* Effect.die(error)
       }
 
       let error: Error | undefined
@@ -508,7 +508,7 @@ export const layer = Layer.effect(
               const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
               const error = new NamedError.Unknown({ message: `Agent not found: "${input.agent}".${hint}` })
               yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
-              throw error
+              return yield* Effect.die(error)
             }
             const model = input.model ?? agent.model ?? (yield* currentModel(input.sessionID))
             const userMsg: SessionLegacy.User = {
@@ -700,7 +700,7 @@ export const layer = Layer.effect(
         const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
         const error = new NamedError.Unknown({ message: `Agent not found: "${agentName}".${hint}` })
         yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
-        throw error
+        return yield* Effect.die(error)
       }
 
       const current = yield* db
@@ -1337,7 +1337,7 @@ export const layer = Layer.effect(
             const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
             const error = new NamedError.Unknown({ message: `Agent not found: "${lastUser.agent}".${hint}` })
             yield* events.publish(Session.Event.Error, { sessionID, error: error.toObject() })
-            throw error
+            return yield* Effect.die(error)
           }
           const maxSteps = agent.steps ?? Infinity
           const isLastStep = step >= maxSteps
@@ -1521,7 +1521,7 @@ export const layer = Layer.effect(
         const hint = available.length ? ` Available commands: ${available.join(", ")}` : ""
         const error = new NamedError.Unknown({ message: `Command not found: "${input.command}".${hint}` })
         yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
-        throw error
+        return yield* Effect.die(error)
       }
       const agentName = cmd.agent ?? input.agent
 
@@ -1582,7 +1582,7 @@ export const layer = Layer.effect(
         const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
         const error = new NamedError.Unknown({ message: `Agent not found: "${agentName}".${hint}` })
         yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
-        throw error
+        return yield* Effect.die(error)
       }
 
       const templateParts = yield* resolvePromptParts(template)
