@@ -28,7 +28,12 @@ Run `bun typecheck` from `packages/opencode` (never `tsc` directly) before build
 
 ### Release watcher (orw)
 
-`@cortexkit/orw` runs at `~/opencode-release-watch/` via launchd (30-min poll). On each new upstream release it AI-merges `fork/local` onto the release tag using `claude-opus-4-8`, builds a native CLI, and auto-installs to `~/.opencode/bin/opencode`. The Homebrew binary at `/opt/homebrew/bin/opencode` stays as a fallback.
+`@cortexkit/orw` runs at `~/opencode-release-watch/` via launchd (30-min poll). On each new upstream release it AI-merges `fork/local` onto the release tag using `claude-opus-4-8`, builds a native CLI (TUI/web only — desktop disabled), and auto-installs to `~/.opencode/bin/opencode`. `~/.opencode/bin/opencode` is prepended to PATH and takes precedence — `which opencode` resolves here. `/opt/homebrew/bin/opencode` holds the vanilla upstream Homebrew version as a manual fallback only.
+
+After pushing new commits to `fork/local` with no upstream release, trigger a rebuild manually:
+```bash
+cd ~/opencode-release-watch && bunx @cortexkit/orw check --force
+```
 
 Operator runbook: `agent-harness/docs/runbooks/OpenCode-Release-Watcher.md`
 
