@@ -1,6 +1,7 @@
-import { PermissionLegacy } from "@opencode-ai/core/permission/legacy"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { Slug } from "@opencode-ai/core/util/slug"
-import { SessionLegacy } from "@opencode-ai/core/session/legacy"
+import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { serviceUse } from "@opencode-ai/core/effect/service-use"
 import path from "path"
 import { BackgroundJob } from "@/background/job"
@@ -10,8 +11,8 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { Database } from "@opencode-ai/core/database/database"
 import { makeRuntime } from "@opencode-ai/core/effect/runtime"
 import { EventV2Bridge } from "@/event-v2-bridge"
-import { EventV2 } from "@opencode-ai/core/event"
 import { SessionV2 } from "@opencode-ai/core/session"
+import { SessionExecution } from "@opencode-ai/core/session/execution"
 
 import { NotFoundError } from "@/storage/storage"
 import { eq } from "drizzle-orm"
@@ -27,7 +28,6 @@ import { or } from "drizzle-orm"
 import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "@opencode-ai/core/session/sql"
 import { ProjectTable } from "@opencode-ai/core/project/sql"
-import { Log } from "@opencode-ai/core/util/log"
 import { MessageV2 } from "./message-v2"
 import type { InstanceContext } from "../project/instance-context"
 import { InstanceState } from "@/effect/instance-state"
@@ -37,14 +37,13 @@ import { WorkspaceV2 } from "@opencode-ai/core/workspace"
 import { SessionID, MessageID, PartID } from "./schema"
 
 import type { Provider } from "@/provider/provider"
-import { Permission } from "@/permission"
 import { Global } from "@opencode-ai/core/global"
 import { Effect, Layer, Option, Context, Schema, Types } from "effect"
-import { AbsolutePath, NonNegativeInt, optionalOmitUndefined } from "@opencode-ai/core/schema"
+import { NonNegativeInt, optionalOmitUndefined } from "@opencode-ai/core/schema"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@opencode-ai/core/provider"
+import { ModelV2 } from "@opencode-ai/core/model"
 
-const log = Log.create({ service: "session" })
 const runtime = makeRuntime(Database.Service, Database.defaultLayer)
 
 const parentTitlePrefix = "New session - "
@@ -82,7 +81,7 @@ export function fromRow(row: SessionRow): Info {
     agent: row.agent ?? undefined,
     model: row.model
       ? {
-          id: ProviderV2.ModelID.make(row.model.id),
+          id: ModelV2.ID.make(row.model.id),
           providerID: ProviderV2.ID.make(row.model.providerID),
           variant: row.model.variant,
         }
@@ -109,13 +108,6 @@ export function fromRow(row: SessionRow): Info {
       compacting: row.time_compacting ?? undefined,
       archived: row.time_archived ?? undefined,
     },
-  }
-}
-
-function eventLocation(info: Pick<Info, "directory" | "workspaceID">) {
-  return {
-    directory: AbsolutePath.make(info.directory),
-    workspaceID: info.workspaceID,
   }
 }
 
@@ -209,7 +201,7 @@ const Revert = Schema.Struct({
 })
 
 const Model = Schema.Struct({
-  id: ProviderV2.ModelID,
+  id: ModelV2.ID,
   providerID: ProviderV2.ID,
   variant: optionalOmitUndefined(Schema.String),
 })
@@ -234,7 +226,7 @@ export const Info = Schema.Struct({
   version: Schema.String,
   metadata: optionalOmitUndefined(Metadata),
   time: Time,
-  permission: optionalOmitUndefined(PermissionLegacy.Ruleset),
+  permission: optionalOmitUndefined(PermissionV1.Ruleset),
   revert: optionalOmitUndefined(Revert),
 }).annotate({ identifier: "Session" })
 export type Info = Types.DeepMutable<Schema.Schema.Type<typeof Info>>
@@ -259,7 +251,7 @@ export const CreateInput = Schema.optional(
     agent: Schema.optional(Schema.String),
     model: Schema.optional(Model),
     metadata: Schema.optional(Metadata),
-    permission: Schema.optional(PermissionLegacy.Ruleset),
+    permission: Schema.optional(PermissionV1.Ruleset),
     workspaceID: Schema.optional(WorkspaceV2.ID),
   }),
 )
@@ -283,7 +275,7 @@ export const SetMetadataInput = Schema.Struct({
 })
 export const SetPermissionInput = Schema.Struct({
   sessionID: SessionID,
-  permission: PermissionLegacy.Ruleset,
+  permission: PermissionV1.Ruleset,
 })
 export const SetRevertInput = Schema.Struct({
   sessionID: SessionID,
@@ -315,69 +307,12 @@ export type GlobalListInput = {
   archived?: boolean
 }
 
-const CreatedEventSchema = Schema.Struct({
-  sessionID: SessionID,
-  info: Info,
-})
-
-const UpdatedShare = Schema.Struct({
-  url: Schema.optional(Schema.NullOr(Schema.String)),
-})
-
-const UpdatedTime = Schema.Struct({
-  created: Schema.optional(Schema.NullOr(NonNegativeInt)),
-  updated: Schema.optional(Schema.NullOr(NonNegativeInt)),
-  compacting: Schema.optional(Schema.NullOr(NonNegativeInt)),
-  archived: Schema.optional(Schema.NullOr(ArchivedTimestamp)),
-})
-
-const UpdatedInfo = Schema.Struct({
-  id: Schema.optional(Schema.NullOr(SessionID)),
-  slug: Schema.optional(Schema.NullOr(Schema.String)),
-  projectID: Schema.optional(Schema.NullOr(ProjectV2.ID)),
-  workspaceID: Schema.optional(Schema.NullOr(WorkspaceV2.ID)),
-  directory: Schema.optional(Schema.NullOr(Schema.String)),
-  path: Schema.optional(Schema.NullOr(Schema.String)),
-  parentID: Schema.optional(Schema.NullOr(SessionID)),
-  summary: Schema.optional(Schema.NullOr(Summary)),
-  cost: Schema.optional(Schema.Finite),
-  tokens: Schema.optional(Tokens),
-  share: Schema.optional(UpdatedShare),
-  title: Schema.optional(Schema.NullOr(Schema.String)),
-  agent: Schema.optional(Schema.NullOr(Schema.String)),
-  model: Schema.optional(Schema.NullOr(Model)),
-  version: Schema.optional(Schema.NullOr(Schema.String)),
-  metadata: Schema.optional(Schema.NullOr(Metadata)),
-  time: Schema.optional(UpdatedTime),
-  permission: Schema.optional(Schema.NullOr(PermissionLegacy.Ruleset)),
-  revert: Schema.optional(Schema.NullOr(Revert)),
-})
-
-const UpdatedEventSchema = Schema.Struct({
-  sessionID: SessionID,
-  info: UpdatedInfo,
-})
-
 export const Event = {
-  Created: SessionLegacy.Event.Created,
-  Updated: SessionLegacy.Event.Updated,
-  Deleted: SessionLegacy.Event.Deleted,
-  Diff: EventV2.define({
-    type: "session.diff",
-    schema: {
-      sessionID: SessionID,
-      diff: Schema.Array(Snapshot.FileDiff),
-    },
-  }),
-  Error: EventV2.define({
-    type: "session.error",
-    schema: {
-      sessionID: Schema.optional(SessionID),
-      // Reuses SessionLegacy.Assistant.fields.error (already Schema.optional) so
-      // the derived schema keeps the same discriminated-union shape on the event stream.
-      error: SessionLegacy.Assistant.fields.error,
-    },
-  }),
+  Created: SessionV1.Event.Created,
+  Updated: SessionV1.Event.Updated,
+  Deleted: SessionV1.Event.Deleted,
+  Diff: SessionV1.Event.Diff,
+  Error: SessionV1.Event.Error,
 }
 
 export function plan(input: { slug: string; time: { created: number } }, instance: InstanceContext) {
@@ -473,7 +408,7 @@ export interface Interface {
     agent?: string
     model?: Schema.Schema.Type<typeof Model>
     metadata?: typeof Metadata.Type
-    permission?: PermissionLegacy.Ruleset
+    permission?: PermissionV1.Ruleset
     workspaceID?: WorkspaceV2.ID
   }) => Effect.Effect<Info>
   readonly fork: (input: { sessionID: SessionID; messageID?: MessageID }) => Effect.Effect<Info, NotFound>
@@ -482,7 +417,7 @@ export interface Interface {
   readonly setTitle: (input: { sessionID: SessionID; title: string }) => Effect.Effect<void>
   readonly setArchived: (input: { sessionID: SessionID; time?: number }) => Effect.Effect<void>
   readonly setMetadata: (input: typeof SetMetadataInput.Type) => Effect.Effect<void>
-  readonly setPermission: (input: { sessionID: SessionID; permission: PermissionLegacy.Ruleset }) => Effect.Effect<void>
+  readonly setPermission: (input: { sessionID: SessionID; permission: PermissionV1.Ruleset }) => Effect.Effect<void>
   readonly setRevert: (input: {
     sessionID: SessionID
     revert: Info["revert"]
@@ -493,21 +428,18 @@ export interface Interface {
   readonly setShare: (input: { sessionID: SessionID; share: Info["share"] }) => Effect.Effect<void>
   readonly setWorkspace: (input: { sessionID: SessionID; workspaceID: Info["workspaceID"] }) => Effect.Effect<void>
   readonly diff: (sessionID: SessionID) => Effect.Effect<Snapshot.FileDiff[]>
-  readonly messages: (input: {
-    sessionID: SessionID
-    limit?: number
-  }) => Effect.Effect<SessionLegacy.WithParts[], NotFound>
+  readonly messages: (input: { sessionID: SessionID; limit?: number }) => Effect.Effect<SessionV1.WithParts[], NotFound>
   readonly children: (parentID: SessionID) => Effect.Effect<Info[]>
   readonly remove: (sessionID: SessionID) => Effect.Effect<void, NotFound>
-  readonly updateMessage: <T extends SessionLegacy.Info>(msg: T) => Effect.Effect<T>
+  readonly updateMessage: <T extends SessionV1.Info>(msg: T) => Effect.Effect<T>
   readonly removeMessage: (input: { sessionID: SessionID; messageID: MessageID }) => Effect.Effect<MessageID>
   readonly removePart: (input: { sessionID: SessionID; messageID: MessageID; partID: PartID }) => Effect.Effect<PartID>
   readonly getPart: (input: {
     sessionID: SessionID
     messageID: MessageID
     partID: PartID
-  }) => Effect.Effect<SessionLegacy.Part | undefined>
-  readonly updatePart: <T extends SessionLegacy.Part>(part: T) => Effect.Effect<T>
+  }) => Effect.Effect<SessionV1.Part | undefined>
+  readonly updatePart: <T extends SessionV1.Part>(part: T) => Effect.Effect<T>
   readonly updatePartDelta: (input: {
     sessionID: SessionID
     messageID: MessageID
@@ -518,8 +450,8 @@ export interface Interface {
   /** Finds the first message matching the predicate, searching newest-first. */
   readonly findMessage: (
     sessionID: SessionID,
-    predicate: (msg: SessionLegacy.WithParts) => boolean,
-  ) => Effect.Effect<Option.Option<SessionLegacy.WithParts>, NotFound>
+    predicate: (msg: SessionV1.WithParts) => boolean,
+  ) => Effect.Effect<Option.Option<SessionV1.WithParts>, NotFound>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Session") {}
@@ -547,20 +479,6 @@ export const layer: Layer.Layer<
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
 
-    const locationForSession = Effect.fnUntraced(function* (sessionID: SessionID) {
-      const row = yield* db
-        .select({ directory: SessionTable.directory, workspaceID: SessionTable.workspace_id })
-        .from(SessionTable)
-        .where(eq(SessionTable.id, sessionID))
-        .get()
-        .pipe(Effect.orDie)
-      if (!row) return
-      return {
-        directory: AbsolutePath.make(row.directory),
-        workspaceID: row.workspaceID ?? undefined,
-      }
-    })
-
     const createNext = Effect.fn("Session.createNext")(function* (input: {
       id?: SessionID
       title?: string
@@ -571,7 +489,7 @@ export const layer: Layer.Layer<
       directory: string
       path?: string
       metadata?: typeof Metadata.Type
-      permission?: PermissionLegacy.Ruleset
+      permission?: PermissionV1.Ruleset
     }) {
       const ctx = yield* InstanceState.context
       const result: Info = {
@@ -595,13 +513,9 @@ export const layer: Layer.Layer<
           updated: Date.now(),
         },
       }
-      log.info("created", result)
+      yield* Effect.logInfo("created", result)
 
-      yield* events.publish(
-        SessionLegacy.Event.Created,
-        { sessionID: result.id, info: result },
-        { location: eventLocation(result) },
-      )
+      yield* events.publish(SessionV1.Event.Created, { sessionID: result.id, info: result })
 
       return result
     })
@@ -688,36 +602,26 @@ export const layer: Layer.Layer<
           yield* remove(child.id)
         }
 
-        yield* events.publish(
-          SessionLegacy.Event.Deleted,
-          { sessionID, info: session },
-          { location: eventLocation(session) },
-        )
+        yield* events.publish(SessionV1.Event.Deleted, { sessionID, info: session })
         yield* events.remove(sessionID)
-      } catch (e) {
-        log.error(e)
+      } catch (error) {
+        yield* Effect.logError("failed to remove session", { sessionID, error })
       }
     })
 
-    const updateMessage = <T extends SessionLegacy.Info>(msg: T): Effect.Effect<T> =>
+    const updateMessage = <T extends SessionV1.Info>(msg: T): Effect.Effect<T> =>
       Effect.gen(function* () {
-        const location = yield* locationForSession(msg.sessionID)
-        yield* events.publish(SessionLegacy.Event.MessageUpdated, { sessionID: msg.sessionID, info: msg }, { location })
+        yield* events.publish(SessionV1.Event.MessageUpdated, { sessionID: msg.sessionID, info: msg })
         return msg
       }).pipe(Effect.withSpan("Session.updateMessage"))
 
-    const updatePart = <T extends SessionLegacy.Part>(part: T): Effect.Effect<T> =>
+    const updatePart = <T extends SessionV1.Part>(part: T): Effect.Effect<T> =>
       Effect.gen(function* () {
-        const location = yield* locationForSession(part.sessionID)
-        yield* events.publish(
-          SessionLegacy.Event.PartUpdated,
-          {
-            sessionID: part.sessionID,
-            part: structuredClone(part),
-            time: Date.now(),
-          },
-          { location },
-        )
+        yield* events.publish(SessionV1.Event.PartUpdated, {
+          sessionID: part.sessionID,
+          part: structuredClone(part),
+          time: Date.now(),
+        })
         return part
       }).pipe(Effect.withSpan("Session.updatePart"))
 
@@ -740,7 +644,7 @@ export const layer: Layer.Layer<
         id: row.id,
         sessionID: row.session_id,
         messageID: row.message_id,
-      } as SessionLegacy.Part
+      } as SessionV1.Part
     })
 
     const create = Effect.fn("Session.create")(function* (input?: {
@@ -749,7 +653,7 @@ export const layer: Layer.Layer<
       agent?: string
       model?: Schema.Schema.Type<typeof Model>
       metadata?: typeof Metadata.Type
-      permission?: PermissionLegacy.Ruleset
+      permission?: PermissionV1.Ruleset
       workspaceID?: WorkspaceV2.ID
     }) {
       const ctx = yield* InstanceState.context
@@ -795,7 +699,7 @@ export const layer: Layer.Layer<
         })
 
         for (const part of msg.parts) {
-          const p: SessionLegacy.Part = {
+          const p: SessionV1.Part = {
             ...part,
             id: PartID.ascending(),
             messageID: cloned.id,
@@ -822,7 +726,7 @@ export const layer: Layer.Layer<
           revert: info.revert === null ? undefined : (info.revert ?? current.revert),
           permission: info.permission === null ? undefined : (info.permission ?? current.permission),
         } as Info
-        yield* events.publish(SessionLegacy.Event.Updated, { sessionID, info: next }, { location: eventLocation(next) })
+        yield* events.publish(SessionV1.Event.Updated, { sessionID, info: next })
       })
 
     const touch = Effect.fn("Session.touch")(function* (sessionID: SessionID) {
@@ -843,7 +747,7 @@ export const layer: Layer.Layer<
 
     const setPermission = Effect.fn("Session.setPermission")(function* (input: {
       sessionID: SessionID
-      permission: PermissionLegacy.Ruleset
+      permission: PermissionV1.Ruleset
     }) {
       yield* patch(input.sessionID, { permission: [...input.permission], time: { updated: Date.now() } }).pipe(
         Effect.orDie,
@@ -899,7 +803,7 @@ export const layer: Layer.Layer<
       }
 
       const size = 50
-      const result = [] as SessionLegacy.WithParts[]
+      const result = [] as SessionV1.WithParts[]
       let before: string | undefined
       while (true) {
         const page = yield* MessageV2.page({ sessionID: input.sessionID, limit: size, before }).pipe(
@@ -920,15 +824,10 @@ export const layer: Layer.Layer<
       sessionID: SessionID
       messageID: MessageID
     }) {
-      const location = yield* locationForSession(input.sessionID)
-      yield* events.publish(
-        SessionLegacy.Event.MessageRemoved,
-        {
-          sessionID: input.sessionID,
-          messageID: input.messageID,
-        },
-        { location },
-      )
+      yield* events.publish(SessionV1.Event.MessageRemoved, {
+        sessionID: input.sessionID,
+        messageID: input.messageID,
+      })
       return input.messageID
     })
 
@@ -937,16 +836,11 @@ export const layer: Layer.Layer<
       messageID: MessageID
       partID: PartID
     }) {
-      const location = yield* locationForSession(input.sessionID)
-      yield* events.publish(
-        SessionLegacy.Event.PartRemoved,
-        {
-          sessionID: input.sessionID,
-          messageID: input.messageID,
-          partID: input.partID,
-        },
-        { location },
-      )
+      yield* events.publish(SessionV1.Event.PartRemoved, {
+        sessionID: input.sessionID,
+        messageID: input.messageID,
+        partID: input.partID,
+      })
       return input.partID
     })
 
@@ -976,7 +870,7 @@ export const layer: Layer.Layer<
         if (!page.more || !page.cursor) break
         before = page.cursor
       }
-      return Option.none<SessionLegacy.WithParts>()
+      return Option.none<SessionV1.WithParts>()
     })
 
     return Service.of({
@@ -1014,6 +908,7 @@ export const defaultLayer = layer.pipe(
   Layer.provide(BackgroundJob.defaultLayer),
   Layer.provide(Database.defaultLayer),
   Layer.provide(EventV2Bridge.defaultLayer),
+  Layer.provide(SessionExecution.noopLayer),
   Layer.provide(SessionV2.defaultLayer),
   Layer.provide(RuntimeFlags.defaultLayer),
 )
@@ -1060,7 +955,7 @@ function listByProject(
           : or(...conds)!,
       )
     }
-  } else if (input.scope !== "project" && !input.experimentalWorkspaces) {
+  } else if (input.scope !== "project") {
     if (input.directory) {
       conditions.push(eq(SessionTable.directory, input.directory))
     }
@@ -1159,5 +1054,7 @@ export function* listGlobal(input?: {
     yield { ...fromRow(row), project }
   }
 }
+
+export const node = LayerNode.make(layer, [BackgroundJob.node, RuntimeFlags.node, Database.node, EventV2Bridge.node])
 
 export * as Session from "./session"

@@ -1,6 +1,6 @@
-import { PermissionLegacy } from "@opencode-ai/core/permission/legacy"
+import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { Agent } from "@/agent/agent"
-import { SessionLegacy } from "@opencode-ai/core/session/legacy"
+import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Command } from "@/command"
 import { Permission } from "@/permission"
@@ -16,7 +16,7 @@ import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
-import { Cause, Effect, Exit, Option, Schema, Scope } from "effect"
+import { Cause, Effect, Option, Schema, Scope } from "effect"
 import * as Stream from "effect/Stream"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiError, HttpApiSchema } from "effect/unstable/httpapi"
@@ -295,31 +295,15 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof PromptPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
-      const exit = yield* promptSvc
-        .prompt({ ...ctx.payload, sessionID: ctx.params.sessionID })
-        .pipe(Effect.exit)
-      if (Exit.isSuccess(exit)) {
-        return HttpServerResponse.stream(
-          Stream.make(JSON.stringify(exit.value)).pipe(Stream.encodeText),
-          { contentType: "application/json" },
-        )
-      }
-      const cause = exit.cause
-      if (!Cause.hasInterruptsOnly(cause)) {
-        yield* Effect.logError("prompt failed").pipe(
-          Effect.annotateLogs({ sessionID: ctx.params.sessionID, cause }),
-        )
-        if (!Cause.hasDies(cause)) {
-          const err = Cause.squash(cause)
-          yield* events.publish(Session.Event.Error, {
-            sessionID: ctx.params.sessionID,
-            error: new NamedError.Unknown({
-              message: err instanceof Error ? err.message : String(err),
-            }).toObject(),
-          })
-        }
-      }
-      return yield* Effect.fail(new HttpApiError.BadRequest({}))
+      const message = yield* promptSvc
+        .prompt({
+          ...ctx.payload,
+          sessionID: ctx.params.sessionID,
+        })
+        .pipe(Effect.mapError(() => new HttpApiError.BadRequest({})))
+      return HttpServerResponse.stream(Stream.make(JSON.stringify(message)).pipe(Stream.encodeText), {
+        contentType: "application/json",
+      })
     })
 
     const promptAsync = Effect.fn("SessionHttpApi.promptAsync")(function* (ctx: {
@@ -330,20 +314,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       yield* promptSvc.prompt({ ...ctx.payload, sessionID: ctx.params.sessionID }).pipe(
         Effect.catchCause((cause) =>
           Effect.gen(function* () {
-            if (Cause.hasInterruptsOnly(cause)) return
-            yield* Effect.logError("prompt_async failed").pipe(
-              Effect.annotateLogs({ sessionID: ctx.params.sessionID, cause }),
-            )
-            // Die causes are pre-announced by the throwing code (e.g. getModel,
-            // createUserMessage) before calling Effect.die — skip the TUI event
-            // to avoid double-publish and raw minified-source stack traces.
-            if (Cause.hasDies(cause)) return
-            const err = Cause.squash(cause)
+            yield* Effect.logError("prompt_async failed", { sessionID: ctx.params.sessionID, cause })
             yield* events.publish(Session.Event.Error, {
               sessionID: ctx.params.sessionID,
-              error: new NamedError.Unknown({
-                message: err instanceof Error ? err.message : String(err),
-              }).toObject(),
+              error: new NamedError.Unknown({ message: Cause.pretty(cause) }).toObject(),
             })
           }),
         ),
@@ -357,26 +331,9 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof CommandPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
-      const exit = yield* promptSvc
+      return yield* promptSvc
         .command({ ...ctx.payload, sessionID: ctx.params.sessionID })
-        .pipe(Effect.exit)
-      if (Exit.isSuccess(exit)) return exit.value
-      const cause = exit.cause
-      if (!Cause.hasInterruptsOnly(cause)) {
-        yield* Effect.logError("command failed").pipe(
-          Effect.annotateLogs({ sessionID: ctx.params.sessionID, cause }),
-        )
-        if (!Cause.hasDies(cause)) {
-          const err = Cause.squash(cause)
-          yield* events.publish(Session.Event.Error, {
-            sessionID: ctx.params.sessionID,
-            error: new NamedError.Unknown({
-              message: err instanceof Error ? err.message : String(err),
-            }).toObject(),
-          })
-        }
-      }
-      return yield* Effect.fail(new HttpApiError.BadRequest({}))
+        .pipe(Effect.mapError(() => new HttpApiError.BadRequest({})))
     })
 
     const shell = Effect.fn("SessionHttpApi.shell")(function* (ctx: {
@@ -401,7 +358,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     })
 
     const permissionRespond = Effect.fn("SessionHttpApi.permissionRespond")(function* (ctx: {
-      params: { sessionID: SessionID; permissionID: PermissionLegacy.ID }
+      params: { sessionID: SessionID; permissionID: PermissionV1.ID }
       payload: typeof PermissionResponsePayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
@@ -437,10 +394,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
 
     const updatePart = Effect.fn("SessionHttpApi.updatePart")(function* (ctx: {
       params: { sessionID: SessionID; messageID: MessageID; partID: PartID }
-      payload: typeof SessionLegacy.Part.Type
+      payload: typeof SessionV1.Part.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
-      const payload = ctx.payload as SessionLegacy.Part
+      const payload = ctx.payload as SessionV1.Part
       if (
         payload.id !== ctx.params.partID ||
         payload.messageID !== ctx.params.messageID ||

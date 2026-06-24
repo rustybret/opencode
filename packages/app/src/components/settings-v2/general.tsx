@@ -1,20 +1,18 @@
 import { Component, Show, createMemo, createResource, onMount } from "solid-js"
-import { createStore } from "solid-js/store"
+import { createMediaQuery } from "@solid-primitives/media"
 import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
-import { Icon } from "@opencode-ai/ui/icon"
-import { SelectV2 } from "@opencode-ai/ui/select-v2"
+import { SelectV2 } from "@opencode-ai/ui/v2/select-v2"
 import { Switch } from "@opencode-ai/ui/v2/switch-v2"
 import { TextInputV2 } from "@opencode-ai/ui/v2/text-input-v2"
-import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { showToast } from "@/utils/toast"
 import { useParams } from "@solidjs/router"
 import { useLanguage } from "@/context/language"
 import { usePermission } from "@/context/permission"
-import { usePlatform, type DisplayBackend } from "@/context/platform"
+import { usePlatform } from "@/context/platform"
 import { useServerSync } from "@/context/server-sync"
 import { useServerSDK } from "@/context/server-sdk"
+import { useUpdaterAction } from "../updater-action"
 import {
   monoDefault,
   monoFontFamily,
@@ -92,12 +90,10 @@ export const SettingsGeneralV2: Component = () => {
   const dialog = useDialog()
   const params = useParams()
   const settings = useSettings()
+  const mobile = createMediaQuery("(max-width: 767px)")
 
-  const [store, setStore] = createStore({
-    checking: false,
-  })
+  const updater = useUpdaterAction()
 
-  const linux = createMemo(() => platform.platform === "desktop" && platform.os === "linux")
   const dir = createMemo(() => decode64(params.dir))
   const accepting = createMemo(() => {
     const value = dir()
@@ -125,76 +121,18 @@ export const SettingsGeneralV2: Component = () => {
   }
   const desktop = createMemo(() => platform.platform === "desktop")
 
-  const check = () => {
-    if (!platform.checkUpdate) return
-    setStore("checking", true)
-
-    void platform
-      .checkUpdate()
-      .then((result) => {
-        if (!result.updateAvailable) {
-          showToast({
-            variant: "success",
-            icon: "circle-check",
-            title: language.t("settings.updates.toast.latest.title"),
-            description: language.t("settings.updates.toast.latest.description", { version: platform.version ?? "" }),
-          })
-          return
-        }
-
-        const actions = platform.updateAndRestart
-          ? [
-              {
-                label: language.t("toast.update.action.installRestart"),
-                onClick: async () => {
-                  await platform.updateAndRestart!()
-                },
-              },
-              {
-                label: language.t("toast.update.action.notYet"),
-                onClick: "dismiss" as const,
-              },
-            ]
-          : [
-              {
-                label: language.t("toast.update.action.notYet"),
-                onClick: "dismiss" as const,
-              },
-            ]
-
-        showToast({
-          persistent: true,
-          icon: "download",
-          title: language.t("toast.update.title"),
-          description: language.t("toast.update.description", { version: result.version ?? "" }),
-          actions,
-        })
-      })
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err)
-        showToast({ title: language.t("common.requestFailed"), description: message })
-      })
-      .finally(() => setStore("checking", false))
-  }
-
   const themeOptions = createMemo<ThemeOption[]>(() => theme.ids().map((id) => ({ id, name: theme.name(id) })))
 
-  const globalSync = useServerSync()
-  const globalSdk = useServerSDK()
+  const serverSync = useServerSync()
+  const serverSdk = useServerSDK()
 
   const [shells] = createResource(
     () =>
-      globalSdk.client.pty
-        .shells()
+      serverSdk()
+        .client.pty.shells()
         .then((res) => res.data ?? [])
         .catch(() => [] as ShellOption[]),
     { initialValue: [] as ShellOption[] },
-  )
-
-  const [displayBackend, { refetch: refetchDisplayBackend }] = createResource(
-    () => (linux() && platform.getDisplayBackend ? true : false),
-    () => Promise.resolve(platform.getDisplayBackend?.() ?? null).catch(() => null as DisplayBackend | null),
-    { initialValue: null as DisplayBackend | null },
   )
 
   const [pinchZoom, { mutate: setPinchZoom }] = createResource(
@@ -208,11 +146,11 @@ export const SettingsGeneralV2: Component = () => {
   })
 
   const autoOption = { id: "auto", value: "", label: language.t("settings.general.row.shell.autoDefault") }
-  const currentShell = createMemo(() => globalSync.data.config.shell ?? "")
+  const currentShell = createMemo(() => serverSync().data.config.shell ?? "")
 
   const shellOptions = createMemo<ShellSelectOption[]>(() => {
     const list = shells.latest
-    const current = globalSync.data.config.shell
+    const current = serverSync().data.config.shell
 
     const nameCounts = new Map<string, number>()
     for (const s of list) {
@@ -240,14 +178,6 @@ export const SettingsGeneralV2: Component = () => {
 
     return options
   })
-
-  const onDisplayBackendChange = (checked: boolean) => {
-    const update = platform.setDisplayBackend?.(checked ? "wayland" : "auto")
-    if (!update) return
-    void update.finally(() => {
-      void refetchDisplayBackend()
-    })
-  }
 
   const onPinchZoomChange = (checked: boolean) => {
     setPinchZoom(checked)
@@ -289,7 +219,7 @@ export const SettingsGeneralV2: Component = () => {
       if (!option) return
       playDemoSound(option.id === "none" ? undefined : option.id)
     },
-    onSelect: (option: (typeof soundOptions)[number] | undefined) => {
+    onSelect: (option: (typeof soundOptions)[number] | null) => {
       if (!option) return
       if (option.id === "none") {
         setEnabled(false)
@@ -310,8 +240,11 @@ export const SettingsGeneralV2: Component = () => {
           description={language.t("settings.general.row.language.description")}
         >
           <SelectV2
+            appearance="inline"
             data-action="settings-language"
             options={languageOptions()}
+            placement="bottom-end"
+            gutter={6}
             current={languageOptions().find((o) => o.value === language.locale())}
             value={(o) => o.value}
             label={(o) => o.label}
@@ -333,15 +266,18 @@ export const SettingsGeneralV2: Component = () => {
           description={language.t("settings.general.row.shell.description")}
         >
           <SelectV2
+            appearance="inline"
             data-action="settings-shell"
             options={shellOptions()}
             current={shellOptions().find((o) => o.value === currentShell()) ?? autoOption}
+            placement="bottom-end"
+            gutter={6}
             value={(o) => o.id}
             label={(o) => o.label}
             onSelect={(option) => {
               if (!option) return
               if (option.value === currentShell()) return
-              globalSync.updateConfig({ shell: option.value })
+              serverSync().updateConfig({ shell: option.value })
             }}
           />
         </SettingsRowV2>
@@ -411,6 +347,20 @@ export const SettingsGeneralV2: Component = () => {
             />
           </div>
         </SettingsRowV2>
+
+        <Show when={mobile()}>
+          <SettingsRowV2
+            title={language.t("settings.general.row.mobileTitlebarBottom.title")}
+            description={language.t("settings.general.row.mobileTitlebarBottom.description")}
+          >
+            <div data-action="settings-mobile-titlebar-bottom">
+              <Switch
+                checked={settings.general.mobileTitlebarPosition() === "bottom"}
+                onChange={(checked) => settings.general.setMobileTitlebarPosition(checked ? "bottom" : "top")}
+              />
+            </div>
+          </SettingsRowV2>
+        </Show>
       </SettingsListV2>
     </div>
   )
@@ -433,18 +383,6 @@ export const SettingsGeneralV2: Component = () => {
         </SettingsRowV2>
 
         <SettingsRowV2
-          title={language.t("settings.general.row.showNavigation.title")}
-          description={language.t("settings.general.row.showNavigation.description")}
-        >
-          <div data-action="settings-show-navigation">
-            <Switch
-              checked={settings.general.showNavigation()}
-              onChange={(checked) => settings.general.setShowNavigation(checked)}
-            />
-          </div>
-        </SettingsRowV2>
-
-        <SettingsRowV2
           title={language.t("settings.general.row.showSearch.title")}
           description={language.t("settings.general.row.showSearch.description")}
         >
@@ -452,18 +390,6 @@ export const SettingsGeneralV2: Component = () => {
             <Switch
               checked={settings.general.showSearch()}
               onChange={(checked) => settings.general.setShowSearch(checked)}
-            />
-          </div>
-        </SettingsRowV2>
-
-        <SettingsRowV2
-          title={language.t("settings.general.row.showTerminal.title")}
-          description={language.t("settings.general.row.showTerminal.description")}
-        >
-          <div data-action="settings-show-terminal">
-            <Switch
-              checked={settings.general.showTerminal()}
-              onChange={(checked) => settings.general.setShowTerminal(checked)}
             />
           </div>
         </SettingsRowV2>
@@ -505,9 +431,12 @@ export const SettingsGeneralV2: Component = () => {
           description={language.t("settings.general.row.colorScheme.description")}
         >
           <SelectV2
+            appearance="inline"
             data-action="settings-color-scheme"
             options={colorSchemeOptions()}
             current={colorSchemeOptions().find((o) => o.value === theme.colorScheme())}
+            placement="bottom-end"
+            gutter={6}
             value={(o) => o.value}
             label={(o) => o.label}
             onSelect={(option) => option && theme.setColorScheme(option.value)}
@@ -531,9 +460,12 @@ export const SettingsGeneralV2: Component = () => {
           }
         >
           <SelectV2
+            appearance="inline"
             data-action="settings-theme"
             options={themeOptions()}
             current={themeOptions().find((o) => o.id === theme.themeId())}
+            placement="bottom-end"
+            gutter={6}
             value={(o) => o.id}
             label={(o) => o.name}
             onSelect={(option) => {
@@ -671,6 +603,7 @@ export const SettingsGeneralV2: Component = () => {
           description={language.t("settings.general.sounds.agent.description")}
         >
           <SelectV2
+            appearance="inline"
             data-action="settings-sounds-agent"
             {...soundSelectProps(
               () => settings.sounds.agentEnabled(),
@@ -678,6 +611,8 @@ export const SettingsGeneralV2: Component = () => {
               (value) => settings.sounds.setAgentEnabled(value),
               (id) => settings.sounds.setAgent(id),
             )}
+            placement="bottom-end"
+            gutter={6}
           />
         </SettingsRowV2>
 
@@ -686,6 +621,7 @@ export const SettingsGeneralV2: Component = () => {
           description={language.t("settings.general.sounds.permissions.description")}
         >
           <SelectV2
+            appearance="inline"
             data-action="settings-sounds-permissions"
             {...soundSelectProps(
               () => settings.sounds.permissionsEnabled(),
@@ -693,6 +629,8 @@ export const SettingsGeneralV2: Component = () => {
               (value) => settings.sounds.setPermissionsEnabled(value),
               (id) => settings.sounds.setPermissions(id),
             )}
+            placement="bottom-end"
+            gutter={6}
           />
         </SettingsRowV2>
 
@@ -701,6 +639,7 @@ export const SettingsGeneralV2: Component = () => {
           description={language.t("settings.general.sounds.errors.description")}
         >
           <SelectV2
+            appearance="inline"
             data-action="settings-sounds-errors"
             {...soundSelectProps(
               () => settings.sounds.errorsEnabled(),
@@ -708,6 +647,8 @@ export const SettingsGeneralV2: Component = () => {
               (value) => settings.sounds.setErrorsEnabled(value),
               (id) => settings.sounds.setErrors(id),
             )}
+            placement="bottom-end"
+            gutter={6}
           />
         </SettingsRowV2>
       </SettingsListV2>
@@ -719,19 +660,6 @@ export const SettingsGeneralV2: Component = () => {
       <h3 class="settings-v2-section-title">{language.t("settings.general.section.updates")}</h3>
 
       <SettingsListV2>
-        <SettingsRowV2
-          title={language.t("settings.updates.row.startup.title")}
-          description={language.t("settings.updates.row.startup.description")}
-        >
-          <div data-action="settings-updates-startup">
-            <Switch
-              checked={settings.updates.startup()}
-              disabled={!platform.checkUpdate}
-              onChange={(checked) => settings.updates.setStartup(checked)}
-            />
-          </div>
-        </SettingsRowV2>
-
         <SettingsRowV2
           title={language.t("settings.general.row.releaseNotes.title")}
           description={language.t("settings.general.row.releaseNotes.description")}
@@ -748,16 +676,15 @@ export const SettingsGeneralV2: Component = () => {
           title={language.t("settings.updates.row.check.title")}
           description={language.t("settings.updates.row.check.description")}
         >
-          <ButtonV2 size="normal" variant="neutral" disabled={store.checking || !platform.checkUpdate} onClick={check}>
-            {store.checking
-              ? language.t("settings.updates.action.checking")
-              : language.t("settings.updates.action.checkNow")}
+          <ButtonV2 size="normal" variant="neutral" disabled={!updater.action().run} onClick={updater.run}>
+            {language.t(updater.action().label)}
           </ButtonV2>
         </SettingsRowV2>
       </SettingsListV2>
     </div>
   )
 
+  // We can probably remove this, right?
   const DisplaySection = () => (
     <Show when={desktop()}>
       <div class="settings-v2-section">
@@ -772,26 +699,6 @@ export const SettingsGeneralV2: Component = () => {
               <Switch checked={pinchZoom.latest} onChange={onPinchZoomChange} />
             </div>
           </SettingsRowV2>
-
-          <Show when={linux()}>
-            <SettingsRowV2
-              title={
-                <div class="flex items-center gap-2">
-                  <span>{language.t("settings.general.row.wayland.title")}</span>
-                  <Tooltip value={language.t("settings.general.row.wayland.tooltip")} placement="top">
-                    <span class="text-text-weak">
-                      <Icon name="help" size="small" />
-                    </span>
-                  </Tooltip>
-                </div>
-              }
-              description={language.t("settings.general.row.wayland.description")}
-            >
-              <div data-action="settings-wayland">
-                <Switch checked={displayBackend.latest === "wayland"} onChange={onDisplayBackendChange} />
-              </div>
-            </SettingsRowV2>
-          </Show>
         </SettingsListV2>
       </div>
     </Show>
@@ -812,13 +719,13 @@ export const SettingsGeneralV2: Component = () => {
 
         <SoundsSection />
 
-        <UpdatesSection />
+        <Show when={desktop()}>
+          <UpdatesSection />
+        </Show>
 
         <DisplaySection />
 
-        <Show when={desktop()}>
-          <AdvancedSection />
-        </Show>
+        <AdvancedSection />
       </div>
     </>
   )

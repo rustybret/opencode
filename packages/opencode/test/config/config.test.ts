@@ -1,5 +1,7 @@
 import { test, expect, describe, afterEach, beforeEach, spyOn } from "bun:test"
-import { Effect, Exit, Layer, Option } from "effect"
+import { ConfigV1 } from "@opencode-ai/core/v1/config/config"
+import { Cause, Effect, Exit, Layer, Option } from "effect"
+import { NamedError } from "@opencode-ai/core/util/error"
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/unstable/http"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
 import { Config } from "@/config/config"
@@ -34,6 +36,7 @@ import { Global } from "@opencode-ai/core/global"
 import { ProjectV2 } from "@opencode-ai/core/project"
 import { Filesystem } from "@/util/filesystem"
 import { ConfigPlugin } from "@/config/plugin"
+import { ConfigPluginV1 } from "@opencode-ai/core/v1/config/plugin"
 import { AccountTest } from "../fake/account"
 import { AuthTest } from "../fake/auth"
 import { NpmTest } from "../fake/npm"
@@ -69,6 +72,7 @@ const wellKnownAuth = (url: string) =>
 function remoteConfigClient(input: {
   wellKnown: unknown
   remote?: unknown
+  remoteHtml?: string
   seen: { wellKnown?: string; remote?: string; authorization?: string }
 }) {
   return HttpClient.make((request) => {
@@ -76,9 +80,17 @@ function remoteConfigClient(input: {
       input.seen.wellKnown = request.url
       return Effect.succeed(json(request, input.wellKnown))
     }
-    if (input.remote !== undefined && request.url.includes("config.example.com")) {
+    if (request.url.includes("config.example.com") && (input.remote !== undefined || input.remoteHtml !== undefined)) {
       input.seen.remote = request.url
       input.seen.authorization = request.headers.authorization
+      if (input.remoteHtml !== undefined) {
+        return Effect.succeed(
+          HttpClientResponse.fromWeb(
+            request,
+            new Response(input.remoteHtml, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }),
+          ),
+        )
+      }
       return Effect.succeed(json(request, input.remote))
     }
     return Effect.succeed(json(request, {}, 404))
@@ -212,6 +224,7 @@ const wellKnown = (input: {
   config?: unknown
   remoteConfig?: { url: string; headers?: Record<string, string> }
   remote?: unknown
+  remoteHtml?: string
   wellKnown?: unknown
 }) => {
   const seen: { wellKnown?: string; remote?: string; authorization?: string } = {}
@@ -222,6 +235,7 @@ const wellKnown = (input: {
       ...(input.remoteConfig !== undefined ? { remote_config: input.remoteConfig } : {}),
     },
     remote: input.remote,
+    remoteHtml: input.remoteHtml,
   })
   return {
     seen,
@@ -360,7 +374,7 @@ it.instance("updates config and preserves empty shell sentinel", () =>
       "config.json",
     )
 
-    yield* Config.Service.use((svc) => svc.update(ConfigParse.schema(Config.Info, { shell: "" }, "test:config")))
+    yield* Config.Service.use((svc) => svc.update(ConfigParse.schema(ConfigV1.Info, { shell: "" }, "test:config")))
 
     const writtenConfig = yield* FSUtil.use.readJson(path.join(test.directory, "config.json"))
     expect(writtenConfig).toMatchObject({ shell: "" })
@@ -385,7 +399,7 @@ it.effect("updates global config and omits empty shell key in jsonc", () =>
 
       const file = path.join(dir, "opencode.jsonc")
       const writtenConfig = yield* FSUtil.use.readFileString(file)
-      const parsed = ConfigParse.schema(Config.Info, ConfigParse.jsonc(writtenConfig, file), file)
+      const parsed = ConfigParse.schema(ConfigV1.Info, ConfigParse.jsonc(writtenConfig, file), file)
       expect(writtenConfig).not.toContain('"shell"')
       expect(parsed.shell).toBeUndefined()
       expect(parsed.model).toBe("test/model")
@@ -720,6 +734,26 @@ it.instance("migrates mode field to agent field", () =>
   }),
 )
 
+it.instance("accepts the deprecated reference field", () =>
+  Effect.gen(function* () {
+    const test = yield* TestInstance
+    yield* writeConfigEffect(test.directory, {
+      $schema: "https://opencode.ai/config.json",
+      reference: {
+        local: { path: "../library" },
+        sdk: { repository: "github.com/example/sdk", branch: "main" },
+        shorthand: "github.com/example/docs",
+      },
+    })
+    const config = yield* Config.use.get()
+    expect(config.reference).toEqual({
+      local: { path: "../library" },
+      sdk: { repository: "github.com/example/sdk", branch: "main" },
+      shorthand: "github.com/example/docs",
+    })
+  }),
+)
+
 it.instance("loads config from .opencode directory", () =>
   Effect.gen(function* () {
     const test = yield* TestInstance
@@ -870,7 +904,7 @@ it.instance("updates config and writes to file", () =>
   Effect.gen(function* () {
     const test = yield* TestInstance
     yield* Config.Service.use((svc) =>
-      svc.update(ConfigParse.schema(Config.Info, { model: "updated/model" }, "test:config")),
+      svc.update(ConfigParse.schema(ConfigV1.Info, { model: "updated/model" }, "test:config")),
     )
 
     const writtenConfig = yield* FSUtil.use.readJson(path.join(test.directory, "config.json"))
@@ -1284,7 +1318,7 @@ it.instance("permission config preserves user key order", () =>
 
 test("config parser preserves permission order while rejecting unknown top-level keys", () => {
   const config = ConfigParse.schema(
-    Config.Info,
+    ConfigV1.Info,
     {
       permission: {
         bash: "allow",
@@ -1297,7 +1331,7 @@ test("config parser preserves permission order while rejecting unknown top-level
 
   expect(Object.keys(config.permission!)).toEqual(["bash", "*", "edit"])
   try {
-    ConfigParse.schema(Config.Info, { invalid_field: true }, "test")
+    ConfigParse.schema(ConfigV1.Info, { invalid_field: true }, "test")
     throw new Error("expected config parse to fail")
   } catch (err) {
     const error = err as { data?: { issues?: Array<{ code?: string; keys?: string[]; path?: string[] }> } }
@@ -1613,6 +1647,24 @@ invalidRemoteWellKnown.it.instance("wellknown remote_config rejects non-object c
   }),
 )
 
+const loginPageWellKnown = wellKnown({
+  remoteConfig: { url: "https://config.example.com/opencode.json" },
+  remoteHtml: "<!DOCTYPE html><html><head><title>Sign in</title></head><body>Login required</body></html>",
+})
+
+loginPageWellKnown.it.instance(
+  "wellknown remote_config surfaces an actionable auth error when the gateway returns an HTML login page",
+  () =>
+    Effect.gen(function* () {
+      const exit = yield* Config.use.get().pipe(Effect.exit)
+      expect(loginPageWellKnown.seen.remote).toBe("https://config.example.com/opencode.json")
+      expect(Exit.isFailure(exit)).toBe(true)
+      const error = Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined
+      expect(NamedError.hasName(error, "ConfigRemoteAuthError")).toBe(true)
+      expect((error as { data?: { url?: string } }).data?.url).toBe("https://example.com")
+    }),
+)
+
 describe("resolvePluginSpec", () => {
   test("keeps package specs unchanged", async () => {
     await using tmp = await tmpdir()
@@ -1684,7 +1736,7 @@ describe("resolvePluginSpec", () => {
 })
 
 describe("deduplicatePluginOrigins", () => {
-  const dedupe = (plugins: ConfigPlugin.Spec[]) =>
+  const dedupe = (plugins: ConfigPluginV1.Spec[]) =>
     ConfigPlugin.deduplicatePluginOrigins(
       plugins.map((spec) => ({
         spec,
@@ -1883,7 +1935,7 @@ describe("OPENCODE_CONFIG_CONTENT token substitution", () => {
 
 test("parseManagedPlist strips MDM metadata keys", async () => {
   const config = ConfigParse.schema(
-    Config.Info,
+    ConfigV1.Info,
     ConfigParse.jsonc(
       await ConfigManaged.parseManagedPlist(
         JSON.stringify({
@@ -1911,7 +1963,7 @@ test("parseManagedPlist strips MDM metadata keys", async () => {
 
 test("parseManagedPlist parses server settings", async () => {
   const config = ConfigParse.schema(
-    Config.Info,
+    ConfigV1.Info,
     ConfigParse.jsonc(
       await ConfigManaged.parseManagedPlist(
         JSON.stringify({
@@ -1931,7 +1983,7 @@ test("parseManagedPlist parses server settings", async () => {
 
 test("parseManagedPlist parses permission rules", async () => {
   const config = ConfigParse.schema(
-    Config.Info,
+    ConfigV1.Info,
     ConfigParse.jsonc(
       await ConfigManaged.parseManagedPlist(
         JSON.stringify({
@@ -1961,7 +2013,7 @@ test("parseManagedPlist parses permission rules", async () => {
 
 test("parseManagedPlist parses enabled_providers", async () => {
   const config = ConfigParse.schema(
-    Config.Info,
+    ConfigV1.Info,
     ConfigParse.jsonc(
       await ConfigManaged.parseManagedPlist(
         JSON.stringify({
@@ -1978,7 +2030,7 @@ test("parseManagedPlist parses enabled_providers", async () => {
 
 test("parseManagedPlist handles empty config", async () => {
   const config = ConfigParse.schema(
-    Config.Info,
+    ConfigV1.Info,
     ConfigParse.jsonc(
       await ConfigManaged.parseManagedPlist(JSON.stringify({ $schema: "https://opencode.ai/config.json" })),
       "test:mobileconfig",

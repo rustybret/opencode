@@ -3,14 +3,14 @@ name: test
 on:
   push:
     branches:
-      - fork/local
+      - dev
   pull_request:
   workflow_dispatch:
 
 concurrency:
-  # Keep every run on fork/local so cancelled checks do not pollute the default branch
+  # Keep every run on dev so cancelled checks do not pollute the default branch
   # commit history. PRs and other branches still share a group and cancel stale runs.
-  group: ${{ github.ref == 'refs/heads/fork/local' && format('{0}-{1}', github.workflow, github.run_id) || format('{0}-{1}', github.workflow, github.event.pull_request.number || github.ref) }}
+  group: ${{ case(github.ref == 'refs/heads/dev', format('{0}-{1}', github.workflow, github.run_id), format('{0}-{1}', github.workflow, github.event.pull_request.number || github.ref)) }}
   cancel-in-progress: true
 
 permissions:
@@ -28,7 +28,9 @@ jobs:
       matrix:
         settings:
           - name: linux
-            host: ubuntu-latest
+            host: blacksmith-4vcpu-ubuntu-2404
+          - name: windows
+            host: blacksmith-4vcpu-windows-2025
     runs-on: ${{ matrix.settings.host }}
     defaults:
       run:
@@ -62,44 +64,29 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: Run unit tests
-        run: bun turbo test:ci
-        # Retry once — upstream has a confirmed flaky timing test (ws-pool idle timeout)
-        # that fails intermittently under CI runner latency. One retry is sufficient.
-        continue-on-error: true
-        id: unit_tests_first
-
-      - name: Retry unit tests (flaky guard)
-        if: steps.unit_tests_first.outcome == 'failure'
-        run: bun turbo test:ci
+        timeout-minutes: 20
+        run: GITHUB_ACTIONS=false bun turbo test
+        env:
+          OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
 
       - name: Run HttpApi exerciser gates
         if: runner.os == 'Linux'
         working-directory: packages/opencode
         run: bun run test:httpapi
 
-      - name: Publish unit reports
-        if: always()
-        uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6.4.0
-        with:
-          report_paths: packages/*/.artifacts/unit/junit.xml
-          check_name: "unit results (${{ matrix.settings.name }})"
-          detailed_summary: true
-          include_time_in_summary: true
-          fail_on_failure: false
-
-      - name: Upload unit artifacts
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: unit-${{ matrix.settings.name }}-${{ github.run_attempt }}
-          include-hidden-files: true
-          if-no-files-found: ignore
-          retention-days: 7
-          path: packages/*/.artifacts/unit/junit.xml
-
   e2e:
-    name: e2e (linux)
-    runs-on: ubuntu-latest
+    name: e2e (${{ matrix.settings.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - name: linux
+            host: blacksmith-4vcpu-ubuntu-2404
+          - name: windows
+            host: blacksmith-4vcpu-windows-2025
+    runs-on: ${{ matrix.settings.host }}
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
     defaults:
       run:
         shell: bash
@@ -112,13 +99,34 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "24"
+          # Playwright 1.59 hangs while extracting Chromium with Node 24.16.
+          node-version: "24.15"
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
-      - name: Verify system Chromium
-        run: chromium-browser --version || chromium --version || which chromium-browser || which chromium
+      - name: Read Playwright version
+        id: playwright-version
+        run: |
+          version=$(node -e 'console.log(require("./package.json").workspaces.catalog["@playwright/test"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ github.workspace }}/.playwright-browsers
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright-version.outputs.version }}-chromium
+
+      - name: Install Playwright system dependencies
+        if: runner.os == 'Linux'
+        working-directory: packages/app
+        run: bunx playwright install-deps chromium
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: packages/app
+        run: bunx playwright install chromium
 
       - name: Run app e2e tests
         run: bun --cwd packages/app test:e2e:local
@@ -130,7 +138,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: playwright-linux-${{ github.run_attempt }}
+          name: playwright-${{ matrix.settings.name }}-${{ github.run_attempt }}
           if-no-files-found: ignore
           retention-days: 7
           path: |
