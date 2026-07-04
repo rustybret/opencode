@@ -1,0 +1,14 @@
+{
+  "$schema": "file:///Volumes/Topper2TB/Git/agent-harness/assets/oh-my-opencode.schema.json",
+  "cross_project_mailbox": {
+    "enabled": true,
+    "intake_eligible_agents": ["sisyphus"],
+    "default_sender_access": "allow-none",
+    "senders": {
+      "agent-harness-0367cd71": {
+        "access": "allow",
+        "intent_budget": "plan"
+      }
+    }
+  }
+}
