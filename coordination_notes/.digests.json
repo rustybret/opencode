@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {
+      "key": "agent-harness-0367cd71:opencode-228cc625:facef1a7-4c9d-40fc-9584-9bdc8702b424:38e53fb3e061497814ae276880efb1f25a065bb21b9679e09c718e82214cfc8d",
+      "digest": "38e53fb3e061497814ae276880efb1f25a065bb21b9679e09c718e82214cfc8d",
+      "fromProjectId": "agent-harness-0367cd71",
+      "toProjectId": "opencode-228cc625",
+      "correlationId": "facef1a7-4c9d-40fc-9584-9bdc8702b424",
+      "recordedAt": 1783367120192,
+      "ttlMs": 3600000
+    },
+    {
+      "key": "agent-harness-0367cd71:opencode-228cc625:40c5edae-fa18-4d63-82e5-674745e49333:82e7b90e9d50fa891a3baea0064205f1d4096828d1bed0007d3a2f29d6b7c19c",
+      "digest": "82e7b90e9d50fa891a3baea0064205f1d4096828d1bed0007d3a2f29d6b7c19c",
+      "fromProjectId": "agent-harness-0367cd71",
+      "toProjectId": "opencode-228cc625",
+      "correlationId": "40c5edae-fa18-4d63-82e5-674745e49333",
+      "recordedAt": 1783367120195,
+      "ttlMs": 3600000
+    }
+  ]
+}

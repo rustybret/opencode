@@ -3,7 +3,6 @@
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as NodeServices from "@effect/platform-node/NodeServices"
 import * as Effect from "effect/Effect"
-import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { Commands } from "./commands/commands"
 import { Runtime } from "./framework/runtime"
 import { Daemon } from "./services/daemon"
