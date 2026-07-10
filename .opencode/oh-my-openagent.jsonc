@@ -1,10 +1,28 @@
 {
-  "$schema": "file:///Volumes/Topper2TB/Git/agent-harness/assets/oh-my-opencode.schema.json",
-  "cross_project_mailbox": {
-    "enabled": true,
-    "intake_eligible_agents": ["sisyphus"],
-    "default_sender_access": "allow-none",
-    "senders": {
+    "$schema": "file:///Volumes/Topper2TB/Git/agent-harness/assets/oh-my-opencode.schema.json",
+    "git_master": {
+        "commit_footer": false,
+        "git_env_prefix": "GIT_MASTER=1",
+        "include_co_authored_by": false
+    },
+    "cross_project_mailbox": {
+        "bounds": {
+            "body_digest_ttl_min": 60,
+            "max_body_bytes": 64768,
+            "max_hops": 4,
+            "max_notes_per_drain": 5,
+            "reservation_ttl_ms": 120000,
+            "same_pair_rate_limit_per_min": 6
+        },
+        "default_sender_access": "allow-none",
+        "enabled": true,
+        "intake_eligible_agents": [
+            "sisyphus",
+            "hephaestus",
+            "atlas"
+        ],
+        "interrupt_policy": "allow-interrupt",
+        "launch_policy": "auto",    "senders": {
       "agent-harness-0367cd71": {
         "access": "allow",
         "intent_budget": "plan"
