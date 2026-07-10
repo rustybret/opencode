@@ -1,4 +1,3 @@
-import { Cause } from "effect"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { errorFormat } from "@/util/error"
 import { isRecord } from "@/util/record"
@@ -33,14 +32,7 @@ function configIssues(input: Record<string, unknown>): ConfigIssue[] {
     : []
 }
 
-const FiberFailureCauseId = Symbol.for("effect/FiberFailure")
-
 export function FormatError(input: unknown): string | undefined {
-  if (typeof input === "object" && input !== null && FiberFailureCauseId in input) {
-    const cause = (input as Record<symbol, unknown>)[FiberFailureCauseId] as Cause.Cause<unknown>
-    return FormatError(Cause.squash(cause))
-  }
-
   if (input instanceof Error && isRecord(input.cause) && "body" in input.cause) {
     const formatted = FormatError(input.cause.body)
     if (formatted) return formatted
@@ -100,18 +92,6 @@ export function FormatError(input: unknown): string | undefined {
   const configFrontmatter = configData(input, "ConfigFrontmatterError")
   if (configFrontmatter) {
     return stringField(configFrontmatter, "message") ?? ""
-  }
-
-  // ConfigRemoteAuthError: { url: string, remote: string }
-  const remoteAuth = configData(input, "ConfigRemoteAuthError")
-  if (remoteAuth) {
-    const url = stringField(remoteAuth, "url")
-    const remote = stringField(remoteAuth, "remote")
-    return [
-      `Failed to load remote config${remote ? ` from ${remote}` : ""}: the server returned a login page instead of JSON.`,
-      `Authentication is missing or has expired (the endpoint is likely behind an SSO or identity-aware proxy).`,
-      ...(url ? [`Run \`opencode auth login ${url}\` to re-authenticate.`] : []),
-    ].join("\n")
   }
 
   // ConfigInvalidError: { path?: string, message?: string, issues?: Array<{ message: string, path: string[] }> }

@@ -1,4 +1,3 @@
-import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import type {
   Hooks,
   PluginInput,
@@ -7,6 +6,7 @@ import type {
   WorkspaceAdapter as PluginWorkspaceAdapter,
 } from "@opencode-ai/plugin"
 import { Config } from "@/config/config"
+import * as Log from "@opencode-ai/core/util/log"
 import { createOpencodeClient } from "@opencode-ai/sdk"
 import { ServerAuth } from "@/server/auth"
 import { CodexAuthPlugin } from "./openai/codex"
@@ -19,7 +19,6 @@ import { CloudflareAIGatewayAuthPlugin, CloudflareWorkersAuthPlugin } from "./cl
 import { AzureAuthPlugin } from "./azure"
 import { DigitalOceanAuthPlugin } from "./digitalocean"
 import { XaiAuthPlugin } from "./xai"
-import { SnowflakeCortexAuthPlugin } from "./snowflake-cortex"
 import { Effect, Layer, Context } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
@@ -31,6 +30,8 @@ import type { WorkspaceAdapter } from "@/control-plane/types"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { InstallationChannel } from "@opencode-ai/core/installation/version"
+
+const log = Log.create({ service: "plugin" })
 
 type State = {
   hooks: Hooks[]
@@ -76,7 +77,6 @@ function internalPlugins(flags: RuntimeFlags.Info): PluginInstance[] {
     CloudflareAIGatewayAuthPlugin,
     AzureAuthPlugin,
     DigitalOceanAuthPlugin,
-    SnowflakeCortexAuthPlugin,
     XaiAuthPlugin,
   ]
 }
@@ -120,7 +120,7 @@ async function applyPlugin(load: PluginLoader.Loaded, input: PluginInput, hooks:
   }
 }
 
-const layer = Layer.effect(
+export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const events = yield* EventV2Bridge.Service
@@ -138,12 +138,11 @@ const layer = Layer.effect(
 
         const { Server } = yield* Effect.promise(() => import("../server/server"))
 
-        const serverUrl = Server.url
         const client = createOpencodeClient({
-          baseUrl: serverUrl?.toString() ?? "http://localhost:4096",
+          baseUrl: "http://localhost:4096",
           directory: ctx.directory,
           headers: ServerAuth.headers(),
-          ...(serverUrl ? {} : { fetch: async (...args) => Server.Default().app.fetch(...args) }),
+          fetch: async (...args) => Server.Default().app.fetch(...args),
         })
         const cfg = yield* config.get()
         const input: PluginInput = {
@@ -164,18 +163,19 @@ const layer = Layer.effect(
         }
 
         for (const plugin of flags.disableDefaultPlugins ? [] : internalPlugins(flags)) {
+          log.info("loading internal plugin", { name: plugin.name })
           const init = yield* Effect.tryPromise({
             try: () => plugin(input),
-            catch: errorMessage,
-          }).pipe(
-            Effect.tapError((error) => Effect.logError("failed to load internal plugin", { name: plugin.name, error })),
-            Effect.option,
-          )
+            catch: (err) => {
+              log.error("failed to load internal plugin", { name: plugin.name, error: err })
+            },
+          }).pipe(Effect.option)
           if (init._tag === "Some") hooks.push(init.value)
         }
 
         const plugins = flags.pure ? [] : (cfg.plugin_origins ?? [])
         if (flags.pure && cfg.plugin_origins?.length) {
+          log.info("skipping external plugins in pure mode", { count: cfg.plugin_origins.length })
         }
         if (plugins.length) yield* config.waitForDependencies()
 
@@ -184,8 +184,12 @@ const layer = Layer.effect(
             items: plugins,
             kind: "server",
             report: {
-              start(candidate) {},
-              missing(candidate, _retry, message) {},
+              start(candidate) {
+                log.info("loading plugin", { path: candidate.plan.spec })
+              },
+              missing(candidate, _retry, message) {
+                log.warn("plugin has no server entrypoint", { path: candidate.plan.spec, message })
+              },
               error(candidate, _retry, stage, error, resolved) {
                 const spec = candidate.plan.spec
                 const cause = error instanceof Error ? (error.cause ?? error) : error
@@ -193,20 +197,24 @@ const layer = Layer.effect(
 
                 if (stage === "install") {
                   const parsed = parsePluginSpecifier(spec)
+                  log.error("failed to install plugin", { pkg: parsed.pkg, version: parsed.version, error: message })
                   publishPluginError(`Failed to install plugin ${parsed.pkg}@${parsed.version}: ${message}`)
                   return
                 }
 
                 if (stage === "compatibility") {
+                  log.warn("plugin incompatible", { path: spec, error: message })
                   publishPluginError(`Plugin ${spec} skipped: ${message}`)
                   return
                 }
 
                 if (stage === "entry") {
+                  log.error("failed to resolve plugin server entry", { path: spec, error: message })
                   publishPluginError(`Failed to load plugin ${spec}: ${message}`)
                   return
                 }
 
+                log.error("failed to load plugin", { path: spec, target: resolved?.entry, error: message })
                 publishPluginError(`Failed to load plugin ${spec}: ${message}`)
               },
             },
@@ -221,10 +229,10 @@ const layer = Layer.effect(
             try: () => applyPlugin(load, input, hooks),
             catch: (err) => {
               const message = errorMessage(err)
+              log.error("failed to load plugin", { path: load.spec, error: message })
               return message
             },
           }).pipe(
-            Effect.tapError((error) => Effect.logError("failed to load plugin", { path: load.spec, error })),
             Effect.catch(() => {
               // TODO: make proper events for this
               // events.publish(Session.Event.Error, {
@@ -241,32 +249,19 @@ const layer = Layer.effect(
         for (const hook of hooks) {
           yield* Effect.tryPromise({
             try: () => Promise.resolve((hook as any).config?.(cfg)),
-            catch: errorMessage,
-          }).pipe(
-            Effect.tapError((error) => Effect.logError("plugin config hook failed", { error })),
-            Effect.ignore,
-          )
+            catch: (err) => {
+              log.error("plugin config hook failed", { error: err })
+            },
+          }).pipe(Effect.ignore)
         }
 
         const unsubscribe = yield* events.listen((event) => {
           if (event.location?.directory !== ctx.directory) return Effect.void
-          return Effect.forEach(
-            hooks,
-            (hook) => {
-              const fn = hook["event"]
-              if (!fn) return Effect.void
-              return Effect.tryPromise({
-                try: () =>
-                  Promise.resolve(
-                    fn({ event: { id: event.id, type: event.type, properties: event.data } as any }),
-                  ),
-                catch: (err) => {
-                  console.error("plugin event hook failed", { error: errorMessage(err) })
-                },
-              }).pipe(Effect.timeout("5 seconds"), Effect.ignore)
-            },
-            { discard: true },
-          )
+          return Effect.sync(() => {
+            for (const hook of hooks) {
+              void hook["event"]?.({ event: { id: event.id, type: event.type, properties: event.data } as any })
+            }
+          })
         })
         yield* Effect.addFinalizer(() => unsubscribe)
 
@@ -276,11 +271,10 @@ const layer = Layer.effect(
             (hook) =>
               Effect.tryPromise({
                 try: () => Promise.resolve(hook.dispose?.()),
-                catch: errorMessage,
-              }).pipe(
-                Effect.tapError((error) => Effect.logError("plugin dispose hook failed", { error })),
-                Effect.ignore,
-              ),
+                catch: (error) => {
+                  log.error("plugin dispose hook failed", { error })
+                },
+              }).pipe(Effect.ignore),
             { discard: true },
           ),
         )
@@ -299,12 +293,7 @@ const layer = Layer.effect(
       for (const hook of s.hooks) {
         const fn = hook[name] as any
         if (!fn) continue
-        yield* Effect.tryPromise({
-          try: async () => fn(input, output),
-          catch: (err) => {
-            console.error("plugin hook failed", { hook: name, error: errorMessage(err) })
-          },
-        }).pipe(Effect.ignore)
+        yield* Effect.promise(async () => fn(input, output))
       }
       return output
     })
@@ -322,10 +311,10 @@ const layer = Layer.effect(
   }),
 )
 
-export const node = LayerNode.make({
-  service: Service,
-  layer: layer,
-  deps: [EventV2Bridge.node, Config.node, RuntimeFlags.node],
-})
+export const defaultLayer = layer.pipe(
+  Layer.provide(EventV2Bridge.defaultLayer),
+  Layer.provide(Config.defaultLayer),
+  Layer.provide(RuntimeFlags.defaultLayer),
+)
 
 export * as Plugin from "."
