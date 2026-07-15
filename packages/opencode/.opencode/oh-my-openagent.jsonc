@@ -1,8 +1,0 @@
-{
-  "$schema": "file:///Volumes/Topper2TB/Git/agent-harness/assets/oh-my-opencode.schema.json",
-  "cross_project_mailbox": {
-    "enabled": true,
-    "default_sender_access": "allow-none",
-    "senders": {}
-  }
-}
