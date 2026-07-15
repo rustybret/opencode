@@ -984,7 +984,7 @@ const ProviderInterleaved = Schema.Union([
 const ProviderReasoningOption = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("effort"),
-    values: Schema.Array(Schema.NullOr(Schema.String)),
+    values: Schema.Array(Schema.String),
   }),
   Schema.Struct({
     type: Schema.Literal("toggle"),
@@ -1234,7 +1234,7 @@ function normalizeReasoningOption(option: unknown): ReasoningOption | undefined 
     if (!Array.isArray(option.values)) return
     return {
       type: "effort",
-      values: option.values.filter((value): value is string | null => value === null || typeof value === "string"),
+      values: option.values.filter((value): value is string => typeof value === "string"),
     }
   }
   if (option.type === "toggle") return { type: "toggle" }
