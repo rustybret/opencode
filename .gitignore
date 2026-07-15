@@ -33,3 +33,4 @@ logs/
 *.bun-build
 tsconfig.tsbuildinfo
 /.opencode/magic-context
+/coordination_notes
