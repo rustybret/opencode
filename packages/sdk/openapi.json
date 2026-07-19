@@ -21263,6 +21263,10 @@
           "default_agent": {
             "type": "string"
           },
+          "subagent_depth": {
+            "type": "integer",
+            "minimum": 0
+          },
           "username": {
             "type": "string"
           },
@@ -21776,58 +21780,6 @@
           },
           "release_date": {
             "type": "string"
-          },
-          "reasoning_options": {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "enum": ["effort"]
-                    },
-                    "values": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "required": ["type", "values"],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "enum": ["toggle"]
-                    }
-                  },
-                  "required": ["type"],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "enum": ["budget_tokens"]
-                    },
-                    "min": {
-                      "type": "number"
-                    },
-                    "max": {
-                      "type": "number"
-                    }
-                  },
-                  "required": ["type"],
-                  "additionalProperties": false
-                }
-              ]
-            }
           },
           "variants": {
             "type": "object",
