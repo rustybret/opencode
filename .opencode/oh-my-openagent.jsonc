@@ -26,6 +26,58 @@
       "agent-harness-0367cd71": {
         "access": "allow",
         "intent_budget": "plan"
+      },
+      "opencode-release-watch-9c1578db": {
+        "access": "deny",
+        "intent_budget": "plan"
+      },
+      "aft-5fc3f7ed": {
+        "access": "allow",
+        "intent_budget": "plan"
+      },
+      "anthropic-auth-1369fa0e": {
+        "access": "allow",
+        "intent_budget": "plan"
+      },
+      "magic-context-6deb493e": {
+        "access": "allow",
+        "intent_budget": "plan"
+      },
+      "openai-auth-bf478581": {
+        "access": "allow",
+        "intent_budget": "plan"
+      },
+      "opencode-gemini-ec2cac67": {
+        "access": "allow",
+        "intent_budget": "impl"
+      },
+      "spacegame-06f6bd29": {
+        "access": "allow",
+        "intent_budget": "impl"
+      },
+      "unitysupermcp-7b6c0482": {
+        "access": "allow",
+        "intent_budget": "plan"
+      },
+      "webgameecs-cf2943b8": {
+        "access": "allow",
+        "intent_budget": "impl"
+      },
+      "rsg-4abd5985": {
+        "access": "allow",
+        "intent_budget": "question"
+      },
+      "orbital-client-ca4c25a7": {
+        "access": "allow",
+        "intent_budget": "question"
+      },
+      "art3d-pipeline-6e240ea8": {
+        "access": "allow",
+        "intent_budget": "impl"
+      },
+      "opencode-release-watch-4543544f": {
+        "access": "allow",
+        "intent_budget": "plan"
       }
     }
   }

@@ -78,8 +78,13 @@ packages/opencode/dist/opencode-<platform>/bin/opencode
 Uses [`@cortexkit/orw`](https://github.com/cortexkit/orw) to stay current with upstream releases. Polls every 30 min, AI-merges `fork/local` onto each new release tag, builds a native CLI, and installs automatically.
 
 ```bash
-# Manual check/build
-cd ~/opencode-release-watch && bunx @cortexkit/orw check --force
+# Manual check/build — routes through the hardened wrapper, which independently
+# verifies the artifact (version match + isolated GET /agent smoke) before
+# reporting success. Never call `bunx @cortexkit/orw check` directly.
+cd ~/opencode-release-watch && run/orw-check check --force
+
+# Re-verify the artifact already recorded in state (no rebuild)
+cd ~/opencode-release-watch && run/orw-check verify
 
 # Rollback
 ~/opencode-release-watch/rollback.sh

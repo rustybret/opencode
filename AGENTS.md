@@ -32,10 +32,12 @@ Run `bun typecheck` from `packages/opencode` (never `tsc` directly) before build
 
 `@cortexkit/orw` runs at `~/opencode-release-watch/` via launchd (30-min poll). On each new upstream release it AI-merges `fork/local` onto the release tag using `claude-opus-4-8`, builds a native CLI (TUI/web only — desktop disabled), and auto-installs to `~/.opencode/bin/opencode`. `~/.opencode/bin/opencode` is prepended to PATH and takes precedence — `which opencode` resolves here. `/opt/homebrew/bin/opencode` holds the vanilla upstream Homebrew version as a manual fallback only.
 
-After pushing new commits to `fork/local` with no upstream release, trigger a rebuild manually:
+After pushing new commits to `fork/local` with no upstream release, trigger a rebuild manually through the hardened wrapper — **never** call `bunx @cortexkit/orw check` directly (that bypasses the independent smoke gate and is what shipped the broken v1.18.2 `plugin-not-defined` build):
 ```bash
-cd ~/opencode-release-watch && bunx @cortexkit/orw check --force
+cd ~/opencode-release-watch && run/orw-check check --force
 ```
+
+The wrapper pins the ORW version, refuses to run unless `install_cli=false`, and independently verifies the built artifact (exact `--version` match + isolated `GET /agent` HTTP 200 smoke on an ephemeral port with temp XDG dirs) before ever reporting success. To re-verify the artifact already recorded in state without rebuilding, run `run/orw-check verify`.
 
 Operator runbook: `agent-harness/docs/runbooks/OpenCode-Release-Watcher.md`
 
