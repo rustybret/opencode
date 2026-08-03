@@ -11,6 +11,7 @@ import { HttpApiApp } from "./routes/instance/httpapi/server"
 import { disposeMiddleware } from "./routes/instance/httpapi/lifecycle"
 import { WebSocketTracker } from "./routes/instance/httpapi/websocket-tracker"
 import { PublicApi } from "./routes/instance/httpapi/public"
+import { ListenerRegistry } from "./listener-registry"
 import type { CorsOptions } from "@opencode-ai/server/cors"
 import { lazy } from "@/util/lazy"
 
@@ -87,6 +88,7 @@ const listenEffect: (opts: ListenOptions) => Effect.Effect<EffectListener, unkno
     const listenerUrl = makeURL(opts.hostname, address.port)
     const unpublishMdns = yield* setupMdns(opts, address.port, state.scope)
     url = listenerUrl
+    ListenerRegistry.publishListener({ url: listenerUrl, hostname: opts.hostname, port: address.port })
 
     return {
       hostname: opts.hostname,
@@ -178,6 +180,7 @@ function makeStop(state: ListenerState, unpublishMdns: Effect.Effect<void>, list
         Effect.ensuring(
           Effect.sync(() => {
             if (url === listenerUrl) url = undefined
+            ListenerRegistry.unpublishListener()
           }),
         ),
       ),

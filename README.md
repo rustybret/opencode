@@ -43,6 +43,55 @@
 
 ---
 
+## Fork
+
+> This is a private fork of [`anomalyco/opencode`](https://github.com/anomalyco/opencode) maintained on the `fork/local` branch. The `opencode-mirror` branch is a clean mirror of upstream — never carry fork commits there.
+
+### Branch model
+
+```
+upstream/dev           ─────────────────────────────────►
+                                                          ↓
+origin/opencode-mirror  ──── (clean mirror, FF-only) ─────►
+                                                          ↓
+fork/local              ──── merged in, our patches ──────►
+```
+
+### Syncing with upstream
+
+```bash
+git sync-upstream
+```
+
+### Building from this fork
+
+```bash
+# Standalone native binary (canonical fork build)
+./packages/opencode/script/build.ts --single
+
+# Output
+packages/opencode/dist/opencode-<platform>/bin/opencode
+```
+
+### Automated release tracking (orw)
+
+Uses [`@cortexkit/orw`](https://github.com/cortexkit/orw) to stay current with upstream releases. Polls every 30 min, AI-merges `fork/local` onto each new release tag, builds a native CLI, and installs automatically.
+
+```bash
+# Manual check/build — routes through the hardened wrapper, which independently
+# verifies the artifact (version match + isolated GET /agent smoke) before
+# reporting success. Never call `bunx @cortexkit/orw check` directly.
+cd ~/opencode-release-watch && run/orw-check check --force
+
+# Re-verify the artifact already recorded in state (no rebuild)
+cd ~/opencode-release-watch && run/orw-check verify
+
+# Rollback
+~/opencode-release-watch/rollback.sh
+```
+
+---
+
 ### Installation
 
 ```bash
