@@ -183,8 +183,8 @@ With that said, you may want to try these methods, as they might work for you.
 
 | Branch | Purpose |
 |--------|---------|
-| `dev` | Clean mirror of `upstream/dev`. Never commit here. |
-| `fork/local` | Customization layer rebased on top of `dev`. All work goes here. |
+| `opencode-mirror` | Clean mirror of `upstream/dev`. Never commit here. |
+| `fork/local` | Customization layer, synced by merging `opencode-mirror` in. All work goes here. |
 
 ### Syncing with upstream
 
@@ -192,7 +192,7 @@ With that said, you may want to try these methods, as they might work for you.
 git sync-upstream
 ```
 
-This repo-local alias (`.git/config`) fetches upstream, fast-forwards `dev` to `upstream/dev`, pushes `origin/dev`, rebases `fork/local` onto `dev`, syncs submodules, runs `bun install`, then pushes `fork/local`. If the rebase conflicts the chain stops before the push — resolve manually, then `git rebase --continue` and re-run the push.
+This repo-local alias (`.git/config`) fetches upstream, fast-forwards `opencode-mirror` to `upstream/dev`, pushes `origin/opencode-mirror`, merges `opencode-mirror` into `fork/local` (creating a merge commit only on divergence), syncs submodules, runs `bun install`, then pushes `fork/local`. If the merge conflicts the chain stops before the push — resolve manually, then `git commit` and re-run `git push origin fork/local`.
 
 ### Building a standalone binary
 

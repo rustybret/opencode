@@ -1,12 +1,13 @@
 name: Sync Upstream
 
 # Two-branch fork model:
-#   dev        — clean mirror of upstream/dev (fast-forward only, never holds fork commits)
-#   fork/local — our thin customization layer, rebased on top of dev
+#   opencode-mirror — clean mirror of upstream/dev (fast-forward only, never holds fork commits)
+#   fork/local      — our thin customization layer, synced by merging opencode-mirror in
 #
-# This workflow fast-forwards dev to the latest upstream, then rebases
-# fork/local on top. If the rebase hits conflicts, it stops and opens an issue
-# so a human can resolve them locally — it never force-resolves silently.
+# This workflow fast-forwards opencode-mirror to the latest upstream, then merges
+# opencode-mirror into fork/local (a merge commit only on divergence). If the merge
+# hits conflicts, it stops and opens an issue so a human can resolve them locally —
+# it never force-resolves silently.
 
 on:
   schedule:
@@ -14,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       upstream_branch:
-        description: "Upstream branch to mirror into dev"
+        description: "Upstream branch to mirror into opencode-mirror"
         required: true
         default: dev
         type: choice
@@ -55,49 +56,50 @@ jobs:
           git fetch origin
           echo "UPSTREAM_BRANCH=${{ inputs.upstream_branch || 'dev' }}" >> $GITHUB_ENV
 
-      - name: Fast-forward dev to upstream (clean mirror)
+      - name: Fast-forward opencode-mirror to upstream (clean mirror)
         run: |
           BRANCH="${{ env.UPSTREAM_BRANCH }}"
-          echo "Mirroring upstream/${BRANCH} into dev (fast-forward only)..."
-          git checkout -B dev "upstream/${BRANCH}"
-          git push origin dev --force-with-lease
-          echo "dev now mirrors upstream/${BRANCH}."
+          echo "Mirroring upstream/${BRANCH} into opencode-mirror (fast-forward only)..."
+          git checkout -B opencode-mirror "upstream/${BRANCH}"
+          git push origin opencode-mirror --force-with-lease
+          echo "opencode-mirror now mirrors upstream/${BRANCH}."
 
-      - name: Rebase fork/local onto updated dev
-        id: rebase
+      - name: Merge opencode-mirror into fork/local
+        id: merge
         run: |
           git checkout -B fork/local origin/fork/local
-          echo "Rebasing fork/local onto dev..."
-          if git rebase dev 2>&1; then
+          echo "Merging opencode-mirror into fork/local..."
+          if git merge opencode-mirror --no-edit 2>&1; then
             echo "result=clean" >> $GITHUB_OUTPUT
           else
-            git rebase --abort || true
+            git merge --abort || true
             echo "result=conflict" >> $GITHUB_OUTPUT
           fi
 
-      - name: Push rebased fork/local
-        if: steps.rebase.outputs.result == 'clean'
+      - name: Push merged fork/local
+        if: steps.merge.outputs.result == 'clean'
         run: |
           git submodule update --init --recursive 2>&1 || true
-          git push origin fork/local --force-with-lease
-          echo "fork/local rebased onto latest upstream and pushed."
+          git push origin fork/local
+          echo "fork/local merged with latest upstream and pushed."
 
-      - name: Open issue on rebase conflict
-        if: steps.rebase.outputs.result == 'conflict'
+      - name: Open issue on merge conflict
+        if: steps.merge.outputs.result == 'conflict'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s\n' \
-            'The sync fast-forwarded dev to upstream but rebasing fork/local hit conflicts.' \
+            'The sync fast-forwarded opencode-mirror to upstream but merging into fork/local hit conflicts.' \
             '' \
             'Resolve locally:' \
             '  git fetch origin' \
             '  git checkout fork/local' \
-            '  git rebase origin/dev' \
+            '  git merge origin/opencode-mirror' \
             '  # fix conflicts, then:' \
-            '  git push origin fork/local --force-with-lease' \
+            '  git commit' \
+            '  git push origin fork/local' \
             > /tmp/issue-body.txt
           gh issue create \
             --repo "${{ github.repository }}" \
-            --title "Upstream sync: fork/local rebase needs manual resolution" \
+            --title "Upstream sync: fork/local merge needs manual resolution" \
             --body-file /tmp/issue-body.txt

@@ -45,16 +45,16 @@
 
 ## Fork
 
-> This is a private fork of [`anomalyco/opencode`](https://github.com/anomalyco/opencode) maintained on the `fork/local` branch. The `dev` branch is a clean mirror of upstream — never carry fork commits there.
+> This is a private fork of [`anomalyco/opencode`](https://github.com/anomalyco/opencode) maintained on the `fork/local` branch. The `opencode-mirror` branch is a clean mirror of upstream — never carry fork commits there.
 
 ### Branch model
 
 ```
-upstream/dev  ─────────────────────────────────►
-                                                 ↓
-origin/dev    ──── (clean mirror, FF-only) ──────►
-                                                 ↓
-fork/local    ──── our patches on top ───────────►
+upstream/dev           ─────────────────────────────────►
+                                                          ↓
+origin/opencode-mirror  ──── (clean mirror, FF-only) ─────►
+                                                          ↓
+fork/local              ──── merged in, our patches ──────►
 ```
 
 ### Syncing with upstream

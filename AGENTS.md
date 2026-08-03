@@ -8,16 +8,16 @@
 
 This repo is a private fork of `anomalyco/opencode` using a **two-branch model**:
 
-- **`dev`** — clean mirror of `upstream/dev`. Never commit fork changes here. Updated via `git sync-upstream`.
+- **`opencode-mirror`** — clean mirror of `upstream/dev`. Never commit fork changes here. Updated via `git sync-upstream` (fast-forward only).
 - **`fork/local`** — the customization layer. All local development happens here.
 
 ### Syncing with upstream
 
 ```bash
-git sync-upstream   # fetch upstream → FF dev → rebase fork/local → push both
+git sync-upstream   # fetch upstream → FF opencode-mirror → merge into fork/local → push both
 ```
 
-The alias lives in `.git/config`. If `rebase` conflicts during the `fork/local` step the chain halts before pushing — resolve conflicts manually, then `git rebase --continue` and re-run the push.
+The alias lives in `.git/config`. If the merge conflicts during the `fork/local` step the chain halts before pushing — resolve conflicts manually, then `git commit` and re-run `git push origin fork/local`.
 
 ### Standalone build
 
