@@ -1,0 +1,105 @@
+name: Sync Upstream
+
+# Two-branch fork model:
+#   opencode-mirror — clean mirror of upstream/dev (fast-forward only, never holds fork commits)
+#   fork/local      — our thin customization layer, synced by merging opencode-mirror in
+#
+# This workflow fast-forwards opencode-mirror to the latest upstream, then merges
+# opencode-mirror into fork/local (a merge commit only on divergence). If the merge
+# hits conflicts, it stops and opens an issue so a human can resolve them locally —
+# it never force-resolves silently.
+
+on:
+  schedule:
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+    inputs:
+      upstream_branch:
+        description: "Upstream branch to mirror into opencode-mirror"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - main
+          - master
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          submodules: false
+          # Use GITHUB_TOKEN (not SUBMODULE_PAT) so origin retains push access to opencode.
+          # SUBMODULE_PAT is injected separately via URL rewrite below for pvrdrxtd only.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git + upstream remote
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Route pvrdrxtd submodule clones through SUBMODULE_PAT without replacing the
+          # main origin credential (which must stay as GITHUB_TOKEN for push access).
+          if [ -n "${{ secrets.SUBMODULE_PAT }}" ]; then
+            git config --global url."https://${{ secrets.SUBMODULE_PAT }}@github.com/rustybret/pvrdrxtd".insteadOf \
+              "https://github.com/rustybret/pvrdrxtd"
+          fi
+          git submodule update --init --recursive 2>&1 || true
+          git remote add upstream https://github.com/anomalyco/opencode.git
+          git fetch upstream
+          git fetch origin
+          echo "UPSTREAM_BRANCH=${{ inputs.upstream_branch || 'dev' }}" >> $GITHUB_ENV
+
+      - name: Fast-forward opencode-mirror to upstream (clean mirror)
+        run: |
+          BRANCH="${{ env.UPSTREAM_BRANCH }}"
+          echo "Mirroring upstream/${BRANCH} into opencode-mirror (fast-forward only)..."
+          git checkout -B opencode-mirror "upstream/${BRANCH}"
+          git push origin opencode-mirror --force-with-lease
+          echo "opencode-mirror now mirrors upstream/${BRANCH}."
+
+      - name: Merge opencode-mirror into fork/local
+        id: merge
+        run: |
+          git checkout -B fork/local origin/fork/local
+          echo "Merging opencode-mirror into fork/local..."
+          if git merge opencode-mirror --no-edit 2>&1; then
+            echo "result=clean" >> $GITHUB_OUTPUT
+          else
+            git merge --abort || true
+            echo "result=conflict" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push merged fork/local
+        if: steps.merge.outputs.result == 'clean'
+        run: |
+          git submodule update --init --recursive 2>&1 || true
+          git push origin fork/local
+          echo "fork/local merged with latest upstream and pushed."
+
+      - name: Open issue on merge conflict
+        if: steps.merge.outputs.result == 'conflict'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s\n' \
+            'The sync fast-forwarded opencode-mirror to upstream but merging into fork/local hit conflicts.' \
+            '' \
+            'Resolve locally:' \
+            '  git fetch origin' \
+            '  git checkout fork/local' \
+            '  git merge origin/opencode-mirror' \
+            '  # fix conflicts, then:' \
+            '  git commit' \
+            '  git push origin fork/local' \
+            > /tmp/issue-body.txt
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Upstream sync: fork/local merge needs manual resolution" \
+            --body-file /tmp/issue-body.txt

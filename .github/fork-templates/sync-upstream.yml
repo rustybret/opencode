@@ -1,0 +1,127 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+    inputs:
+      upstream_branch:
+        description: "Upstream branch to merge"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - main
+          - master
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure upstream remote
+        run: |
+          # TODO: AGENT/HUMAN MUST REPLACE THIS URL DURING SETUP
+          git remote add upstream <UPSTREAM_REPO_URL>
+          git fetch upstream
+          echo "UPSTREAM_BRANCH=${{ inputs.upstream_branch || 'dev' }}" >> $GITHUB_ENV
+
+      - name: Attempt merge
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="${{ env.UPSTREAM_BRANCH }}"
+          echo "Merging upstream/${BRANCH} into main..."
+
+          if git merge "upstream/${BRANCH}" --no-edit --no-ff 2>&1; then
+            echo "result=clean" >> $GITHUB_OUTPUT
+          else
+            echo "result=conflict" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Resolve protected file conflicts
+        if: steps.merge.outputs.result == 'conflict'
+        id: resolve
+        run: |
+          # These files we always keep our (fork) version
+          PROTECTED_FILES=".gitmodules .github/workflows/ci.yml .github/workflows/sync-upstream.yml"
+
+          for f in $PROTECTED_FILES; do
+            if git diff --name-only --diff-filter=U | grep -qxF "$f"; then
+              echo "Resolving $f in favor of ours (fork)"
+              git checkout --ours "$f"
+              git add "$f"
+            fi
+          done
+
+          # For branch-specific CI references, keep ours
+          if git diff --name-only --diff-filter=U | grep -qF ".github/workflows"; then
+            echo "Resolving any remaining workflow conflicts in favor of fork"
+            for f in $(git diff --name-only --diff-filter=U | grep "^.github/workflows/"); do
+              git checkout --ours "$f"
+              git add "$f"
+            done
+          fi
+
+          REMAINING=$(git diff --name-only --diff-filter=U)
+          if [ -n "$REMAINING" ]; then
+            echo "UNRESOLVED CONFLICTS:"
+            echo "$REMAINING"
+            echo "result=unresolved" >> $GITHUB_OUTPUT
+          else
+            echo "All conflicts resolved, committing..."
+            git commit --no-edit
+            echo "result=resolved" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Handle submodules after merge
+        if: steps.merge.outputs.result == 'clean' || steps.resolve.outputs.result == 'resolved'
+        run: |
+          # Try to sync submodules to our fork URLs
+          git submodule sync
+          git submodule update --init --recursive 2>&1 || {
+            echo "WARNING: Submodule update failed. This usually means upstream updated the submodule pointer to a commit not present in our local/enhancements branch."
+            echo "Falling back to our existing submodule pointers..."
+            git submodule status | awk '{print $2}' | xargs -I {} git checkout --ours {}
+            git submodule status | awk '{print $2}' | xargs -I {} git add {}
+            
+            # If we still have uncommitted submodule changes, commit them
+            if ! git diff --cached --quiet; then
+              git commit -m "chore: pin submodules to fork branches after upstream merge"
+            fi
+          }
+
+      - name: Create PR for unresolved conflicts
+        if: steps.resolve.outputs.result == 'unresolved'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: merge upstream/${{ inputs.upstream_branch || 'dev' }} -- continue manually"
+          title: "chore: merge upstream/${{ env.UPSTREAM_BRANCH }} (manual resolution needed)"
+          body: |
+            Auto-merge from upstream/${{ env.UPSTREAM_BRANCH }} had conflicts that could not be resolved automatically.
+
+            Unresolved files:
+            $(git diff --name-only --diff-filter=U)
+
+            Please resolve these conflicts and merge manually.
+          branch: auto-sync/upstream-${{ env.UPSTREAM_BRANCH }}-${{ github.run_id }}
+          delete-branch: true
+
+      - name: Push clean merge to main
+        if: steps.merge.outputs.result == 'clean' || steps.resolve.outputs.result == 'resolved'
+        run: |
+          git push origin main
+          echo "Merge pushed to main. CI will build automatically."

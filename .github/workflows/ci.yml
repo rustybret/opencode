@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [fork/local]
+  pull_request:
+    branches: [fork/local]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure submodule credentials
+        run: |
+          if [ -n "${{ secrets.SUBMODULE_PAT }}" ]; then
+            git config --global url."https://${{ secrets.SUBMODULE_PAT }}@github.com/rustybret/pvrdrxtd".insteadOf \
+              "https://github.com/rustybret/pvrdrxtd"
+          fi
+          git submodule update --init --recursive 2>&1 || true
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Single Binary
+        run: ./packages/opencode/script/build.ts --single
