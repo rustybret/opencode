@@ -34,12 +34,21 @@ export default defineConfig({
     baseURL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    video: process.env.CI ? "off" : "retain-on-failure",
   },
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // Required for headless Chromium on Linux CI runners (no GPU, no sandbox)
+        launchOptions: process.env.CI
+          ? {
+              executablePath: "/usr/bin/chromium-browser",
+              args: ["--no-sandbox", "--disable-gpu", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+            }
+          : {},
+      },
     },
   ],
 })

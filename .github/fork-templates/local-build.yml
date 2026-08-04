@@ -1,0 +1,55 @@
+name: Build (local trigger)
+
+on:
+  repository_dispatch:
+    types: [local-build]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # TODO: AGENT/HUMAN MUST MODIFY THESE STEPS TO MATCH THE SPECIFIC PROJECT'S BUILD PROCESS
+      
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "latest"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run buildname: Build (local trigger)
+
+on:
+  repository_dispatch:
+    types: [local-build]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # TODO: AGENT/HUMAN MUST MODIFY THESE STEPS TO MATCH THE SPECIFIC PROJECT'S BUILD PROCESS
+      
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "latest"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: ./packages/opencode/script/build.ts --single
