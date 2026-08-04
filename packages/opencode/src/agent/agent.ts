@@ -30,6 +30,7 @@ import { LocationServiceMap, locationServiceMapLayer } from "@opencode-ai/core/l
 import { Reference } from "@opencode-ai/core/reference"
 import { Location } from "@opencode-ai/core/location"
 import { PluginV2 } from "@opencode-ai/core/plugin"
+import { Plugin } from "@/plugin"
 
 export const Info = Schema.Struct({
   name: Schema.String,
@@ -92,6 +93,7 @@ const layer = Layer.effect(
     const skill = yield* Skill.Service
     const provider = yield* Provider.Service
     const locations = yield* LocationServiceMap.Service
+    const plugin = yield* Plugin.Service
 
     const state = yield* InstanceState.make<State>(
       Effect.fn("Agent.state")(function* (ctx) {
@@ -446,7 +448,7 @@ const locationServiceMapNode = LayerNode.make({
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [Config.node, Auth.node, Skill.node, Provider.node, locationServiceMapNode],
+  deps: [Config.node, Auth.node, Skill.node, Provider.node, locationServiceMapNode, Plugin.node],
 })
 
 export * as Agent from "./agent"
