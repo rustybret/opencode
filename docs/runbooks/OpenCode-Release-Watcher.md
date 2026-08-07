@@ -8,18 +8,18 @@
 
 **Location**: `~/opencode-release-watch/orw.config.json`
 
-| Key | Value | Notes |
-|-----|-------|-------|
-| `release_repo` | `anomalyco/opencode` | Upstream watched for new tags |
-| `source_repo` | `/Volumes/Topper2TB/Git/opencode` | Local fork root |
-| `work_repo` | `./.orw/repo/opencode-build` | Scratch clone for each integration |
-| `base_branch` | `dev` | Base for integration branch |
-| `branches` | see below | Fork patches + upstream PRs to merge |
-| `poll_minutes` | `30` | launchd fires every 30 min |
-| `model` | `anthropic/claude-opus-4-8` | Agent used for conflict resolution |
-| `opencode_bin` | `~/.opencode/bin/opencode` | Install destination (fork binary, takes PATH precedence) |
-| `install_cli` | `true` | Install CLI after build |
-| `install_desktop` | `false` | Desktop packaging disabled — TUI/web only |
+| Key               | Value                             | Notes                                                    |
+| ----------------- | --------------------------------- | -------------------------------------------------------- |
+| `release_repo`    | `anomalyco/opencode`              | Upstream watched for new tags                            |
+| `source_repo`     | `/Volumes/Topper2TB/Git/opencode` | Local fork root                                          |
+| `work_repo`       | `./.orw/repo/opencode-build`      | Scratch clone for each integration                       |
+| `base_branch`     | `dev`                             | Base for integration branch                              |
+| `branches`        | see below                         | Fork patches + upstream PRs to merge                     |
+| `poll_minutes`    | `30`                              | launchd fires every 30 min                               |
+| `model`           | `anthropic/claude-opus-4-8`       | Agent used for conflict resolution                       |
+| `opencode_bin`    | `~/.opencode/bin/opencode`        | Install destination (fork binary, takes PATH precedence) |
+| `install_cli`     | `true`                            | Install CLI after build                                  |
+| `install_desktop` | `false`                           | Desktop packaging disabled — TUI/web only                |
 
 ---
 
@@ -44,11 +44,11 @@ Entries are merged in order onto the upstream release tag. Two kinds:
 
 ## Trigger Behavior
 
-| Event | orw behavior |
-|-------|-------------|
-| New upstream release tag | Auto-builds within 30 min (launchd poll) |
-| New commits on `fork/local` only (no new tag) | **Does not auto-build** — use `--force` |
-| Transient 504 from GitHub releases API | Logged, retried on next poll |
+| Event                                         | orw behavior                             |
+| --------------------------------------------- | ---------------------------------------- |
+| New upstream release tag                      | Auto-builds within 30 min (launchd poll) |
+| New commits on `fork/local` only (no new tag) | **Does not auto-build** — use `--force`  |
+| Transient 504 from GitHub releases API        | Logged, retried on next poll             |
 
 ### After pushing to `fork/local` with no upstream release
 
@@ -62,11 +62,11 @@ This rebuilds on the current `last_tag` with the latest branch state.
 
 ## launchd Job
 
-| Item | Value |
-|------|-------|
-| Plist | `~/Library/LaunchAgents/com.orw.opencode.plist` |
-| Script | `~/opencode-release-watch/run-check.sh` |
-| Interval | 1800 s (30 min) |
+| Item       | Value                                                   |
+| ---------- | ------------------------------------------------------- |
+| Plist      | `~/Library/LaunchAgents/com.orw.opencode.plist`         |
+| Script     | `~/opencode-release-watch/run-check.sh`                 |
+| Interval   | 1800 s (30 min)                                         |
 | stdout log | `~/opencode-release-watch/.orw/logs/launchd-stdout.log` |
 | stderr log | `~/opencode-release-watch/.orw/logs/launchd-stderr.log` |
 
@@ -116,19 +116,21 @@ cd ~/opencode-release-watch && bunx @cortexkit/orw preview
 
 ## Install Paths
 
-| Binary | How updated |
-|--------|-------------|
-| `~/.opencode/bin/opencode` | orw auto-install (`opencode_bin`) — fork binary, active via PATH |
+| Binary                       | How updated                                                                       |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `~/.opencode/bin/opencode`   | orw auto-install (`opencode_bin`) — fork binary, active via PATH                  |
 | `/opt/homebrew/bin/opencode` | Homebrew-managed vanilla upstream; manual fallback only, never overwritten by orw |
 
 `~/.opencode/bin/` is prepended to `PATH` in `~/.zshrc` and `~/.zprofile` — `which opencode` resolves to the fork binary. Run `/opt/homebrew/bin/opencode` explicitly to use the upstream Homebrew version.
 
 After a `--force` build, if OpenCode is running:
+
 ```bash
 cd ~/opencode-release-watch && bunx @cortexkit/orw install-when-closed
 ```
 
 Or copy the artifact directly if OpenCode is closed:
+
 ```bash
 cp ~/opencode-release-watch/.orw/repo/opencode-build/packages/opencode/dist/opencode-darwin-arm64/bin/opencode ~/.opencode/bin/opencode
 codesign --force --sign - ~/.opencode/bin/opencode
@@ -142,11 +144,13 @@ codesign --force --sign - ~/.opencode/bin/opencode
 ### Build aborts immediately with `git fetch` error
 
 A branch in `branches[]` no longer exists. Check which:
+
 ```bash
 for b in $(jq -r '.branches[]' ~/opencode-release-watch/orw.config.json | grep -v '^https'); do
   gh api repos/rustybret/opencode/branches/$b --jq '.name' 2>/dev/null || echo "MISSING: $b"
 done
 ```
+
 Remove missing entries from `orw.config.json`.
 
 ### `No new release` on every poll despite new upstream tag
