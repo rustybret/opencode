@@ -192,7 +192,7 @@ With that said, you may want to try these methods, as they might work for you.
 git sync-upstream
 ```
 
-This repo-local alias (`.git/config`) fetches upstream, fast-forwards `opencode-mirror` to `upstream/dev`, pushes `origin/opencode-mirror`, merges `opencode-mirror` into `fork/local` (creating a merge commit only on divergence), syncs submodules, runs `bun install`, then pushes `fork/local`. If the merge conflicts the chain stops before the push — resolve manually, then `git commit` and re-run `git push origin fork/local`.
+This repo-local alias (`.git/config`) runs `script/fork-sync.sh`: fetches upstream, fast-forwards `opencode-mirror` to `upstream/dev`, pushes `origin/opencode-mirror`, merges `opencode-mirror` into `fork/local` (creating a merge commit only on divergence), auto-resolves standing exclusions in `script/fork-sync-exclusions` (removing restored workflows/docs and keeping fork deletions permanent), sweeps new upstream files matching exclusions, syncs submodules, runs `bun install`, then pushes `fork/local`. If manual conflicts arise, resolve them, commit (`git commit --no-verify`), then `git push origin fork/local`.
 
 ### Building a standalone binary
 
