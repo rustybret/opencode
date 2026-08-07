@@ -19,7 +19,7 @@ jobs:
           submodules: recursive
 
       # TODO: AGENT/HUMAN MUST MODIFY THESE STEPS TO MATCH THE SPECIFIC PROJECT'S BUILD PROCESS
-      
+
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "latest"
