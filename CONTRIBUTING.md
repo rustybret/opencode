@@ -181,10 +181,10 @@ With that said, you may want to try these methods, as they might work for you.
 
 ### Branch model
 
-| Branch | Purpose |
-|--------|---------|
-| `opencode-mirror` | Clean mirror of `upstream/dev`. Never commit here. |
-| `fork/local` | Customization layer, synced by merging `opencode-mirror` in. All work goes here. |
+| Branch            | Purpose                                                                          |
+| ----------------- | -------------------------------------------------------------------------------- |
+| `opencode-mirror` | Clean mirror of `upstream/dev`. Never commit here.                               |
+| `fork/local`      | Customization layer, synced by merging `opencode-mirror` in. All work goes here. |
 
 ### Syncing with upstream
 
