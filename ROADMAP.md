@@ -64,6 +64,29 @@ These decisions came from the owner interview on 2026-08-10 and should guide the
 
 The mixed state-authority answer remains intentionally unresolved; the proposed four-layer model below is the next decision artifact.
 
+## Blocking Conflict: Dual Context Ownership
+
+### Current Implementation Status
+The codebase contains two parallel context management systems. System Context Registry is implemented at `packages/core/src/system-context/index.ts` via the `SystemContext.Source<A>` interface, which defines `key`, `codec`, `load`, `baseline`, `update`, and `removed`. The registry service itself is defined at `packages/core/src/system-context/registry.ts` as `@opencode/v2/SystemContextRegistry`, with builtins located in `packages/core/src/system-context/builtins.ts`. 
+
+Alongside this, the Context Epoch system is implemented at `packages/core/src/session/context-epoch.ts`. Database support is established through migrations `packages/core/src/database/migration/20260605042240_add_context_epoch_agent.ts` and `packages/core/src/database/migration/20260622142730_simplify_session_context_epoch.ts`.
+
+### The Active Code Conflict
+A direct conflict exists between the System Context Registry and Magic Context (MC). MC owns the `m[0]` frozen baseline and the `m[1]` volatile delta. Because both systems attempt to manage and compact the session context, they compete for ownership. This dual ownership causes severe issues. For example, uc-studio must explicitly disable host compaction by setting `compaction.auto: false` and `compaction.prune: false` to prevent dual compaction cycles.
+
+Furthermore, state injections, such as editor selection, Unity play-mode status, project switches, and presence, occur before the `cache_control` breakpoint. This placement invalidates the prompt cache prefix, destroying prompt caching efficiency.
+
+### Resolution Options
+
+#### Option 1 (Preferred): Magic Context Implements `SystemContext.Source`
+Under this option, Magic Context implements the `SystemContext.Source` interface. Reconciliation runs through a single pipeline. The host manages epoch boundaries, while Magic Context retains ownership of the actual content. This approach preserves prompt-cache prefix stability.
+
+#### Option 2 (Fallback): Registry Disabled When Magic Context is Active
+This option uses a configuration gate to disable the System Context Registry entirely whenever Magic Context is active. Magic Context retains sole ownership of the context.
+
+#### Option 3 (Documented Alternative): Partition by `SystemContext.Key`
+We partition ownership using `SystemContext.Key`. The System Context Registry owns host-native sources, including current working directory, git status, and editor selection. Magic Context owns memory and history. This option requires a strict guarantee that registry output never precedes the `cache_control` breakpoint of Magic Context.
+
 ## Non-Goals And Boundaries
 
 The following are out of scope unless separately approved:
