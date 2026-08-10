@@ -487,6 +487,11 @@ Every fork-local change should record one classification. The frontend plane is 
 
 ### Merge-risk rules
 
+- **Core vs. Fork vs. Adapter Separation**: Core never imports from the fork. If non-OpenCode harnesses need it -> Core. If a plugin hook can do it -> Adapter (`omo-opencode`). If it needs rendering or a new HTTP endpoint -> Fork.
+- **Fork Diff Size Metric**: Track fork diff size as a tracked release metric (`script/fork-sync-exclusions` encodes permanent divergence; anything not listed should be pushed down).
+- **Versioning Scheme**: Keep upstream's version as base with a UCS suffix (`1.18.15+ucs.N`) so upstream lineage stays legible in every artifact. `@ucs/contracts` is semver'd independently.
+- **Static Egress Audit for Telemetry**: No third-party telemetry egress, with zero exceptions for "anonymous" stats. A static egress audit runs in `packages/opencode/test/fork-sync-model.test.ts` (extended to frontend bundles). Zero third-party egress coexists with the internal UCS operational telemetry profile defined under Privacy Profile.
+- **Vendored Mirrors Constraint**: `aft` and `magic-context` are vendored mirrors updated via `script/sync-cortexkit.sh`. Local patches get reverted on next sync. Any feature requiring an AFT or Magic Context change MUST land upstream in the cortexkit repositories first.
 - Prefer new namespaced files and route groups over broad edits to upstream files.
 - Keep public protocol/API changes additive and generated from source.
 - Keep UCS visual design and navigation changes localized to `packages/app`, `packages/desktop`, and TUI feature/plugin surfaces.
