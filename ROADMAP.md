@@ -67,11 +67,13 @@ The mixed state-authority answer remains intentionally unresolved; the proposed 
 ## Blocking Conflict: Dual Context Ownership
 
 ### Current Implementation Status
-The codebase contains two parallel context management systems. System Context Registry is implemented at `packages/core/src/system-context/index.ts` via the `SystemContext.Source<A>` interface, which defines `key`, `codec`, `load`, `baseline`, `update`, and `removed`. The registry service itself is defined at `packages/core/src/system-context/registry.ts` as `@opencode/v2/SystemContextRegistry`, with builtins located in `packages/core/src/system-context/builtins.ts`. 
+
+The codebase contains two parallel context management systems. System Context Registry is implemented at `packages/core/src/system-context/index.ts` via the `SystemContext.Source<A>` interface, which defines `key`, `codec`, `load`, `baseline`, `update`, and `removed`. The registry service itself is defined at `packages/core/src/system-context/registry.ts` as `@opencode/v2/SystemContextRegistry`, with builtins located in `packages/core/src/system-context/builtins.ts`.
 
 Alongside this, the Context Epoch system is implemented at `packages/core/src/session/context-epoch.ts`. Database support is established through migrations `packages/core/src/database/migration/20260605042240_add_context_epoch_agent.ts` and `packages/core/src/database/migration/20260622142730_simplify_session_context_epoch.ts`.
 
 ### The Active Code Conflict
+
 A direct conflict exists between the System Context Registry and Magic Context (MC). MC owns the `m[0]` frozen baseline and the `m[1]` volatile delta. Because both systems attempt to manage and compact the session context, they compete for ownership. This dual ownership causes severe issues. For example, uc-studio must explicitly disable host compaction by setting `compaction.auto: false` and `compaction.prune: false` to prevent dual compaction cycles.
 
 Furthermore, state injections, such as editor selection, Unity play-mode status, project switches, and presence, occur before the `cache_control` breakpoint. This placement invalidates the prompt cache prefix, destroying prompt caching efficiency.
@@ -79,12 +81,15 @@ Furthermore, state injections, such as editor selection, Unity play-mode status,
 ### Resolution Options
 
 #### Option 1 (Preferred): Magic Context Implements `SystemContext.Source`
+
 Under this option, Magic Context implements the `SystemContext.Source` interface. Reconciliation runs through a single pipeline. The host manages epoch boundaries, while Magic Context retains ownership of the actual content. This approach preserves prompt-cache prefix stability.
 
 #### Option 2 (Fallback): Registry Disabled When Magic Context is Active
+
 This option uses a configuration gate to disable the System Context Registry entirely whenever Magic Context is active. Magic Context retains sole ownership of the context.
 
 #### Option 3 (Documented Alternative): Partition by `SystemContext.Key`
+
 We partition ownership using `SystemContext.Key`. The System Context Registry owns host-native sources, including current working directory, git status, and editor selection. Magic Context owns memory and history. This option requires a strict guarantee that registry output never precedes the `cache_control` breakpoint of Magic Context.
 
 ## Non-Goals And Boundaries
@@ -159,7 +164,9 @@ The bridge between the planes should be explicit:
 - Versioned capability manifest describing which UCS features a host supports.
 
 #### Stable Contracts (`@ucs/contracts`)
+
 To ensure interoperability across the ecosystem and insulate the fork from sync breakages, publish `@ucs/contracts` holding only stable schemas and interfaces:
+
 - **Plugin ABI**: Standard execution contract `server(input, options) -> Promise<Hooks>`.
 - **Boulder state schema**: JSON structure for tracking task execution and recovery (`packages/boulder-state` + `.omo/boulder.json`).
 - **Team Mode storage layout**: Directory structure and configuration format (`~/.omo/teams/{name}/`).
@@ -168,12 +175,15 @@ To ensure interoperability across the ecosystem and insulate the fork from sync 
 - **Skill manifest provenance**: Security metadata tracking `source_repo`, `source_rev`, and per-file sha256 hashes.
 
 #### Core Dependency Law
+
 All stable contracts must sit at the **Schema tier or below**. This preserves the strict architecture dependency direction:
 $$\text{Schema} \rightarrow \{\text{Core}, \text{Protocol}\} \rightarrow \text{Server}$$
 Client runtime code may depend on Schema and Protocol, but never Core or Server. A `@ucs/contracts` package consumed by both frontend and server must obey this law so running `bun run generate` from `packages/client` never breaks.
 
 #### Unstable Internals (DO NOT FREEZE)
+
 The following internal implementation details are subject to change and must NOT be exposed as stable contracts:
+
 - **Message layout**: Internal `m[0]` and `m[1]` message structures (owned by Magic Context).
 - **AFT transport selection**: Logic choosing between `BridgePool` stdio and `SubcTransportPool` daemon. Expose capabilities, never the transport.
 - **Pipeline internals**: Execution flow of the 6-phase agent pipeline. Expose phase names for observability, never let a frontend inject at a phase.
@@ -185,7 +195,9 @@ The following internal implementation details are subject to change and must NOT
 Rather than building Unity-specific frontend plumbing, define a generic `UcsExternalApp` integration contract with Unity (`unitySuperMCP`) as implementation #1. This generalizes to Unreal, Godot, Roblox, Blender, Figma, Xcode, and Android Studio.
 
 #### 6 Core Contract Verbs
+
 Every external application adapter implements six standard capabilities:
+
 1. `connect`: Establish connection, authenticate, and retrieve remote application state.
 2. `status`: Query live connection health, active mode, and scene/project context.
 3. `capabilities`: Inspect supported external actions, tools, and event types.
@@ -194,6 +206,7 @@ Every external application adapter implements six standard capabilities:
 6. `stream-progress`: Stream intermediate status for long-running operations (e.g. domain reload, build/compile).
 
 #### 5 Event/State Requirements
+
 1. **Streaming progress**: Long operations (domain reload, shader compile) take minutes and invalidate handles. Requires streaming progress events (directly parallel to AFT's `bg_events` StreamData lane; build one streaming progress abstraction for both).
 2. **Modal/blocking interruption**: External applications throw OS-level modal dialogs that halt automation. "External app blocked, human input required" must be a first-class agent state (`blocked-on-human`), not an error.
 3. **Connection lifecycle**: Mid-session reconnect must be survivable without taking down the OpenCode session or dropping history.
@@ -204,12 +217,12 @@ Every external application adapter implements six standard capabilities:
 
 “A mixture of all four” is workable only if each layer has a narrow authority boundary:
 
-| Layer | Authoritative for | Not authoritative for |
-|---|---|---|
-| Repository intent | Project goals, constraints, plans, skills, policy, reusable project configuration | Live session state, secrets, transient process state |
-| OpenCode local runtime | Sessions, messages, tool execution, provider state, local event cursor, ephemeral cache | Cross-machine project truth or marketing/analytics data |
-| UCS coordination store | Work items, milestones, integration registrations, evidence index, cross-session/project coordination, consent ledger | Raw prompts/files unless explicitly approved and separately classified |
-| Optional remote replication | Explicitly selected coordination/telemetry records for approved team or product features | Anything not covered by a declared purpose and retention policy |
+| Layer                       | Authoritative for                                                                                                     | Not authoritative for                                                  |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Repository intent           | Project goals, constraints, plans, skills, policy, reusable project configuration                                     | Live session state, secrets, transient process state                   |
+| OpenCode local runtime      | Sessions, messages, tool execution, provider state, local event cursor, ephemeral cache                               | Cross-machine project truth or marketing/analytics data                |
+| UCS coordination store      | Work items, milestones, integration registrations, evidence index, cross-session/project coordination, consent ledger | Raw prompts/files unless explicitly approved and separately classified |
+| Optional remote replication | Explicitly selected coordination/telemetry records for approved team or product features                              | Anything not covered by a declared purpose and retention policy        |
 
 The first implementation should use an append/reconcile model rather than four competing mutable sources. Each record needs an authority label, stable ID, version, timestamps, provenance, and conflict policy. Remote replication should be a projection or event stream until the owner explicitly chooses it as authoritative for a domain.
 
@@ -233,6 +246,7 @@ This is an engineering target profile, not a legal conclusion. Counsel or a qual
 ## Must-Have Workflows
 
 ### Tier 1 (Non-negotiable)
+
 - **Multi-session concurrency with visible session tree**: Support one primary agent coordinating with N subagents, rendering the topology clearly in the interface (1 primary + N subagents is the standard pattern; today topology is invisible, which is a major debugging cost).
 - **Background task lifecycle stream**: Implement the `bg_events` StreamData lane, `ParentWakeNotifier`, and a strict FIFO queue capped at 5 concurrent tasks per model/provider (`providerID/modelID`).
 - **Durable work state via Boulder**: Track execution state using `packages/boulder-state` and persist progress locally in `.omo/boulder.json`. Do not invent a second work model.
@@ -240,6 +254,7 @@ This is an engineering target profile, not a legal conclusion. Counsel or a qual
 - **Todo/plan visibility**: Expose active plans and todo lists directly in the interface as first-class elements, not buried in chat scrollback.
 
 ### Tier 2
+
 - **Cross-project mailbox inbox**: Provide a unified view of inbound messages and requests sent between different project agents.
 - **Team Mode topology**: Manage agent team configurations and roles stored under `~/.omo/teams/{name}/` (`config.json`, `state.json`, `mailbox/`, `tasklist.jsonl`, `worktrees/`).
 - **Evidence browser**: Allow users to inspect generated artifacts, logs, and run details stored in `.omo/evidence/`.
@@ -247,6 +262,7 @@ This is an engineering target profile, not a legal conclusion. Counsel or a qual
 - **Skill/MCP inspector**: List active Model Context Protocol servers, registered tools, and loaded skills with provenance (`source_repo`, `source_rev`, per-file sha256).
 
 ### Tier 3 (Deferred)
+
 - **Model/provider config editors**: Graphical interfaces to manage API keys, endpoints, and model parameters.
 - **Telemetry dashboards**: Visual charts for token usage, latency, and cost tracking.
 - **Marketplace UI**: A browser for discovering and installing community skills or plugins.
@@ -255,15 +271,15 @@ This is an engineering target profile, not a legal conclusion. Counsel or a qual
 
 ## Ownership Matrix
 
-| Surface | UCS owns | OpenCode upstream owns | Primary gate |
-|---|---|---|---|
-| Web | Information architecture, navigation, project views, agent/task UX, visual system, workflows | Transport primitives and compatible SDK usage | Unit + browser tests + Playwright evidence |
-| Desktop | Native shell, menus, windows, storage, updater, OS integrations, UCS launch experience | Shared app renderer and server protocol where retained | Typecheck + packaged smoke + platform review |
-| TUI | UCS command vocabulary, project/session control, compact status and recovery affordances | OpenTUI/runtime primitives and compatible baseline | TUI smoke + command behavior evidence |
-| CLI | UCS commands, scripting, attach/serve ergonomics, diagnostics | Provider/session/server primitives | CLI JSON/API smoke and exit-code checks |
-| Server/API | UCS namespaced routes and control-plane features | Existing OpenCode routes and lifecycle | HTTP exercise + schema generation + auth tests |
-| Plugin | UCS capability registration and hook composition | Stable host plugin contract | Hook ordering, lifecycle, and compatibility tests |
-| Other hosts | Shared capability packages and adapter contracts | Host-specific UX and lifecycle | Their own adapter gates; not this roadmap's implementation scope |
+| Surface     | UCS owns                                                                                     | OpenCode upstream owns                                 | Primary gate                                                     |
+| ----------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- |
+| Web         | Information architecture, navigation, project views, agent/task UX, visual system, workflows | Transport primitives and compatible SDK usage          | Unit + browser tests + Playwright evidence                       |
+| Desktop     | Native shell, menus, windows, storage, updater, OS integrations, UCS launch experience       | Shared app renderer and server protocol where retained | Typecheck + packaged smoke + platform review                     |
+| TUI         | UCS command vocabulary, project/session control, compact status and recovery affordances     | OpenTUI/runtime primitives and compatible baseline     | TUI smoke + command behavior evidence                            |
+| CLI         | UCS commands, scripting, attach/serve ergonomics, diagnostics                                | Provider/session/server primitives                     | CLI JSON/API smoke and exit-code checks                          |
+| Server/API  | UCS namespaced routes and control-plane features                                             | Existing OpenCode routes and lifecycle                 | HTTP exercise + schema generation + auth tests                   |
+| Plugin      | UCS capability registration and hook composition                                             | Stable host plugin contract                            | Hook ordering, lifecycle, and compatibility tests                |
+| Other hosts | Shared capability packages and adapter contracts                                             | Host-specific UX and lifecycle                         | Their own adapter gates; not this roadmap's implementation scope |
 
 ## Plugin And Hook Strategy
 
@@ -472,66 +488,66 @@ The roadmap collapses the prior eight-phase plan into six phases. The reorder is
 
 Every old deliverable is carried into the six-phase model. "Primary" is the phase that owns the deliverable; "Also in" notes phases where a precursor or split portion lands.
 
-| Old phase | Old deliverable | Primary new phase | Also in |
-|---|---|---|---|
-| P0 Alignment | UCS-agent feedback returned and attached | P0 | — |
-| P0 Alignment | Product vocabulary and non-goals approved | P0 | — |
-| P0 Alignment | Source of truth for project/work state chosen | P0 (conflict unblock) | — |
-| P0 Alignment | Plugin-first vs host-native criteria approved | P0 | — |
-| P0 Alignment | Supported surfaces and platform matrix chosen | P0 | — |
-| P0 Alignment | Privacy/telemetry/external-network policy chosen | P0 | P5 (audit) |
-| P0 Alignment | Gate: P0 questions answered + capability boundary | P0 | — |
-| P1 Inventory | Ownership map (all surfaces + SDKs) | P0 | — |
-| P1 Inventory | Divergence ledger | P0 | — |
-| P1 Inventory | Namespaced `ucs` API rule | P0 (`@ucs/contracts`) | — |
-| P1 Inventory | Sync rehearsal `opencode-mirror`→`fork/local` | P0 | P5 |
-| P1 Inventory | Generated-file policy | P0 | P1 (SDK), P5 |
-| P1 Inventory | Gate: clean merge rehearsal + host-native answers | P0 | — |
-| P2 Frontend | Shared domain navigation | P2 (read-only) | P3 (write) |
-| P2 Frontend | Shared terminology + route/command IDs | P0 (`@ucs/contracts`) | — |
-| P2 Frontend | Web design-system foundation + responsive layout | P2 | — |
-| P2 Frontend | Desktop shell contract | P5 | P0 (contract spec) |
-| P2 Frontend | TUI command map | P2 (read baseline) | P3 (write/approvals) |
-| P2 Frontend | CLI/server command + API naming conventions | P1 | — |
-| P2 Frontend | Gate: shell with one path on Web/TUI/CLI (Desktop deferred) | P2 | P5 (Desktop) |
-| P3 Slice | Unity `unitySuperMCP` → Unity Editor slice | P4 (`UcsExternalApp`) | — |
-| P3 Slice | One project view + one work-item view | P2 (read) | P3 (write), P4 (integration) |
-| P3 Slice | One opinionated agent role + small skill set | P4 | — |
-| P3 Slice | One SuperMCP integration (typed action/event) | P4 | — |
-| P3 Slice | One review/evidence flow | P4 | P2 (read view) |
-| P3 Slice | Session/project state in Web + via CLI/server | P2 | P1 (endpoints) |
-| P3 Slice | Gate: real end-to-end vs Unity, no mocks | P4 | — |
-| P4 Capability | Versioned agent/category registry | P4 | — |
-| P4 Capability | Skill registry (source/version/verification) | P4 | — |
-| P4 Capability | Tool registry (permission + resource policy) | P4 | P3 (approvals consume) |
-| P4 Capability | Team/task coordination contract | P4 | P0 (contract seed) |
-| P4 Capability | Memory/context integration contract | P4 | P0 (context-owner decision) |
-| P4 Capability | Provider/model policy + fallback contract | P4 | — |
-| P4 Capability | OpenCode adapter with deterministic hook phases | P4 | — |
-| P4 Capability | Adapter conformance fixtures | P4 | — |
-| P4 Capability | Gate: reference-complete + host-neutral packages | P4 | — |
-| P5 Server | Namespaced UCS HTTP API groups + schemas | P1 | — |
-| P5 Server | Project/work/integration endpoints + authz (topology + task-state) | P1 | — |
-| P5 Server | Event-stream semantics | P1 | P2 (consumer) |
-| P5 Server | Generated client SDK updates (client regeneration) | P1 | — |
-| P5 Server | Migration + rollback policy for persisted data | P1 | P5 (rollback) |
-| P5 Server | Headless server mode | P1 | — |
-| P5 Server | Gate: API/authz/SDK/migration tests + merge rehearsal | P1 | — |
-| P6 Surface | Web: full nav, review, multi-session workflows | P2 (multi-session, read) | P3 (write/review) |
-| P6 Surface | Desktop (last): native workspace, updater, packaging, platform UX | P5 | — |
-| P6 Surface | TUI: switching, status, agent/task control, approvals, recovery | P3 (approvals/control) | P2 (read), P5 (polish) |
-| P6 Surface | CLI/server: automation, JSON, attach/serve, diagnostics, import/export | P1 (substrate) | P3 (write ops), P5 (polish) |
-| P6 Surface | Gate: per-surface QA + packaged Desktop smoke | Split | P2/P3/P4 per surface; P5 (Desktop) |
-| P7 Release | Regular upstream sync rehearsal + merge-risk report | P5 | P0 (first rehearsal) |
-| P7 Release | Release manifest (upstream/capability/frontend versions) | P5 | — |
-| P7 Release | Compatibility matrix for host/plugin API versions | P5 | — |
-| P7 Release | V1 vs V2 adapter compatibility matrix (separate) | P5 | — |
-| P7 Release | Binary build + artifact smoke for supported platforms | P5 | — |
-| P7 Release | Rollback procedure (frontend/plugin/API/data) | P5 | P1 (data rollback) |
-| P7 Release | Deployment defaults incl. `"snapshot": false` | P5 | — |
-| P7 Release | Release notes: upstream vs UCS changes | P5 | — |
-| P7 Release | Telemetry/privacy profile + retention/consent audit | P5 | P0 (policy) |
-| P7 Release | Gate: signed artifact + bootstrap + smoke + rollback | P5 | — |
+| Old phase     | Old deliverable                                                        | Primary new phase        | Also in                            |
+| ------------- | ---------------------------------------------------------------------- | ------------------------ | ---------------------------------- |
+| P0 Alignment  | UCS-agent feedback returned and attached                               | P0                       | —                                  |
+| P0 Alignment  | Product vocabulary and non-goals approved                              | P0                       | —                                  |
+| P0 Alignment  | Source of truth for project/work state chosen                          | P0 (conflict unblock)    | —                                  |
+| P0 Alignment  | Plugin-first vs host-native criteria approved                          | P0                       | —                                  |
+| P0 Alignment  | Supported surfaces and platform matrix chosen                          | P0                       | —                                  |
+| P0 Alignment  | Privacy/telemetry/external-network policy chosen                       | P0                       | P5 (audit)                         |
+| P0 Alignment  | Gate: P0 questions answered + capability boundary                      | P0                       | —                                  |
+| P1 Inventory  | Ownership map (all surfaces + SDKs)                                    | P0                       | —                                  |
+| P1 Inventory  | Divergence ledger                                                      | P0                       | —                                  |
+| P1 Inventory  | Namespaced `ucs` API rule                                              | P0 (`@ucs/contracts`)    | —                                  |
+| P1 Inventory  | Sync rehearsal `opencode-mirror`→`fork/local`                          | P0                       | P5                                 |
+| P1 Inventory  | Generated-file policy                                                  | P0                       | P1 (SDK), P5                       |
+| P1 Inventory  | Gate: clean merge rehearsal + host-native answers                      | P0                       | —                                  |
+| P2 Frontend   | Shared domain navigation                                               | P2 (read-only)           | P3 (write)                         |
+| P2 Frontend   | Shared terminology + route/command IDs                                 | P0 (`@ucs/contracts`)    | —                                  |
+| P2 Frontend   | Web design-system foundation + responsive layout                       | P2                       | —                                  |
+| P2 Frontend   | Desktop shell contract                                                 | P5                       | P0 (contract spec)                 |
+| P2 Frontend   | TUI command map                                                        | P2 (read baseline)       | P3 (write/approvals)               |
+| P2 Frontend   | CLI/server command + API naming conventions                            | P1                       | —                                  |
+| P2 Frontend   | Gate: shell with one path on Web/TUI/CLI (Desktop deferred)            | P2                       | P5 (Desktop)                       |
+| P3 Slice      | Unity `unitySuperMCP` → Unity Editor slice                             | P4 (`UcsExternalApp`)    | —                                  |
+| P3 Slice      | One project view + one work-item view                                  | P2 (read)                | P3 (write), P4 (integration)       |
+| P3 Slice      | One opinionated agent role + small skill set                           | P4                       | —                                  |
+| P3 Slice      | One SuperMCP integration (typed action/event)                          | P4                       | —                                  |
+| P3 Slice      | One review/evidence flow                                               | P4                       | P2 (read view)                     |
+| P3 Slice      | Session/project state in Web + via CLI/server                          | P2                       | P1 (endpoints)                     |
+| P3 Slice      | Gate: real end-to-end vs Unity, no mocks                               | P4                       | —                                  |
+| P4 Capability | Versioned agent/category registry                                      | P4                       | —                                  |
+| P4 Capability | Skill registry (source/version/verification)                           | P4                       | —                                  |
+| P4 Capability | Tool registry (permission + resource policy)                           | P4                       | P3 (approvals consume)             |
+| P4 Capability | Team/task coordination contract                                        | P4                       | P0 (contract seed)                 |
+| P4 Capability | Memory/context integration contract                                    | P4                       | P0 (context-owner decision)        |
+| P4 Capability | Provider/model policy + fallback contract                              | P4                       | —                                  |
+| P4 Capability | OpenCode adapter with deterministic hook phases                        | P4                       | —                                  |
+| P4 Capability | Adapter conformance fixtures                                           | P4                       | —                                  |
+| P4 Capability | Gate: reference-complete + host-neutral packages                       | P4                       | —                                  |
+| P5 Server     | Namespaced UCS HTTP API groups + schemas                               | P1                       | —                                  |
+| P5 Server     | Project/work/integration endpoints + authz (topology + task-state)     | P1                       | —                                  |
+| P5 Server     | Event-stream semantics                                                 | P1                       | P2 (consumer)                      |
+| P5 Server     | Generated client SDK updates (client regeneration)                     | P1                       | —                                  |
+| P5 Server     | Migration + rollback policy for persisted data                         | P1                       | P5 (rollback)                      |
+| P5 Server     | Headless server mode                                                   | P1                       | —                                  |
+| P5 Server     | Gate: API/authz/SDK/migration tests + merge rehearsal                  | P1                       | —                                  |
+| P6 Surface    | Web: full nav, review, multi-session workflows                         | P2 (multi-session, read) | P3 (write/review)                  |
+| P6 Surface    | Desktop (last): native workspace, updater, packaging, platform UX      | P5                       | —                                  |
+| P6 Surface    | TUI: switching, status, agent/task control, approvals, recovery        | P3 (approvals/control)   | P2 (read), P5 (polish)             |
+| P6 Surface    | CLI/server: automation, JSON, attach/serve, diagnostics, import/export | P1 (substrate)           | P3 (write ops), P5 (polish)        |
+| P6 Surface    | Gate: per-surface QA + packaged Desktop smoke                          | Split                    | P2/P3/P4 per surface; P5 (Desktop) |
+| P7 Release    | Regular upstream sync rehearsal + merge-risk report                    | P5                       | P0 (first rehearsal)               |
+| P7 Release    | Release manifest (upstream/capability/frontend versions)               | P5                       | —                                  |
+| P7 Release    | Compatibility matrix for host/plugin API versions                      | P5                       | —                                  |
+| P7 Release    | V1 vs V2 adapter compatibility matrix (separate)                       | P5                       | —                                  |
+| P7 Release    | Binary build + artifact smoke for supported platforms                  | P5                       | —                                  |
+| P7 Release    | Rollback procedure (frontend/plugin/API/data)                          | P5                       | P1 (data rollback)                 |
+| P7 Release    | Deployment defaults incl. `"snapshot": false`                          | P5                       | —                                  |
+| P7 Release    | Release notes: upstream vs UCS changes                                 | P5                       | —                                  |
+| P7 Release    | Telemetry/privacy profile + retention/consent audit                    | P5                       | P0 (policy)                        |
+| P7 Release    | Gate: signed artifact + bootstrap + smoke + rollback                   | P5                       | —                                  |
 
 ## Upstream Sync Strategy
 
@@ -590,23 +606,24 @@ Every phase must produce evidence, not only code or passing unit tests.
 
 ## Risk Register
 
-| Risk | Consequence | Mitigation |
-|---|---|---|
-| Plugin/host boundary blur | Permanent merge burden and duplicated logic | Require plugin-first/host-native justification per feature |
-| Web/Desktop/TUI treated as one product surface | Incomplete UX and untestable milestones | Separate ownership and gates per surface |
-| UCS project state duplicated across systems | Conflicts, migration pain, unclear authority | Decide one source of truth in Phase 0 |
-| V2 plugin API changes upstream | Adapter breakage | Version pin, compatibility layer, conformance tests |
-| API/schema divergence | Generated SDK and server drift | Source-first edits and mandatory generation gate |
-| SuperMCP integration assumptions | Expensive rework or unsafe actions | One real vertical slice and explicit capability contracts |
-| Frontend fork grows without merge budget | Upstream sync becomes unaffordable | Divergence ledger and regular merge rehearsal |
-| Desktop native scope expands | Signing/platform delays | Web-first shared capability, native-only behavior by exception |
-| TUI parity demand | Separate frontend becomes a second product | Define TUI as control/status surface unless approved otherwise |
-| Privacy/telemetry ambiguity | Loss of trust and accidental data exposure | Phase 0 data-boundary and telemetry decision |
-| Missing UCS-agent feedback | Roadmap encodes wrong cross-project assumptions | Block Phase 0 completion until feedback is returned or explicitly waived |
-| Snapshot storage recurrence | Boot-drive exhaustion during tests/deployments | Keep `"snapshot": false` as deployment default and verify it operationally |
-| Per-project plugin dependency churn | Hundreds of generated dependency trees, slow startup, or version mismatch | Package the UCS adapter, pin host/plugin versions, isolate caches, and add disk-growth smoke checks |
-| Ambiguous mixed state authority | Lost updates, conflicting records, impossible migrations | Assign every record to one authority layer and use explicit projections/reconciliation |
-| Over-broad telemetry | Privacy, trust, and compliance exposure | Classify events, prohibit content-bearing fields, enforce 30-day TTL, and audit opt-out/consent |
+| Risk                                                                      | Consequence                                                                                                                   | Mitigation                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plugin/host boundary blur                                                 | Permanent merge burden and duplicated logic                                                                                   | Require plugin-first/host-native justification per feature                                                                                                                                                                             |
+| Web/Desktop/TUI treated as one product surface                            | Incomplete UX and untestable milestones                                                                                       | Separate ownership and gates per surface                                                                                                                                                                                               |
+| UCS project state duplicated across systems                               | Conflicts, migration pain, unclear authority                                                                                  | Decide one source of truth in Phase 0                                                                                                                                                                                                  |
+| **Dual context-ownership conflict ships unresolved (Severity: Blocking)** | Live/system context desync, lost updates, and unsafe multi-session writes across `system-context` and `session/context-epoch` | **Resolve in Phase 0 before any write path. Prefer Option 1: session `context-epoch` is the single authority; `system-context` demoted to a read-only projection. Validate against migrations `20260605042240` and `20260622142730`.** |
+| V2 plugin API changes upstream                                            | Adapter breakage                                                                                                              | Version pin, compatibility layer, conformance tests                                                                                                                                                                                    |
+| API/schema divergence                                                     | Generated SDK and server drift                                                                                                | Source-first edits and mandatory generation gate                                                                                                                                                                                       |
+| SuperMCP integration assumptions                                          | Expensive rework or unsafe actions                                                                                            | One real vertical slice and explicit capability contracts                                                                                                                                                                              |
+| Frontend fork grows without merge budget                                  | Upstream sync becomes unaffordable                                                                                            | Divergence ledger and regular merge rehearsal                                                                                                                                                                                          |
+| Desktop native scope expands                                              | Signing/platform delays                                                                                                       | Web-first shared capability, native-only behavior by exception                                                                                                                                                                         |
+| TUI parity demand                                                         | Separate frontend becomes a second product                                                                                    | Define TUI as control/status surface unless approved otherwise                                                                                                                                                                         |
+| Privacy/telemetry ambiguity                                               | Loss of trust and accidental data exposure                                                                                    | Phase 0 data-boundary and telemetry decision                                                                                                                                                                                           |
+| ~~Missing UCS-agent feedback~~ — **Resolved 2026-08-10**                  | Roadmap would encode wrong cross-project assumptions                                                                          | **Closed: feedback received (msg `134fb143-3462-4234-b928-93b1d53806fe`, trace `.omo/mailbox-trace.jsonl`) and incorporated into this revision**                                                                                       |
+| Snapshot storage recurrence                                               | Boot-drive exhaustion during tests/deployments                                                                                | Keep `"snapshot": false` as deployment default and verify it operationally                                                                                                                                                             |
+| Per-project plugin dependency churn                                       | Hundreds of generated dependency trees, slow startup, or version mismatch                                                     | Package the UCS adapter, pin host/plugin versions, isolate caches, and add disk-growth smoke checks                                                                                                                                    |
+| Ambiguous mixed state authority                                           | Lost updates, conflicting records, impossible migrations                                                                      | Assign every record to one authority layer and use explicit projections/reconciliation                                                                                                                                                 |
+| Over-broad telemetry                                                      | Privacy, trust, and compliance exposure                                                                                       | Classify events, prohibit content-bearing fields, enforce 30-day TTL, and audit opt-out/consent                                                                                                                                        |
 
 ## Owner Interview: Decisions Required
 
@@ -660,6 +677,8 @@ These questions are intentionally extensive because each answer changes architec
 
 ## UCS-Agent Feedback Gate
 
+**Status (2026-08-10): Satisfied.** The uc-studio agent returned structured feedback as mailbox message `134fb143-3462-4234-b928-93b1d53806fe` (trace in `.omo/mailbox-trace.jsonl`). This gate is met; its content is incorporated into the six-phase model and the Risk Register above. The document is no longer blocked on feedback, but remains a strategy draft until the remaining approval gates (see Approval State) are cleared.
+
 Before implementation begins, obtain a response from the uc-studio agent covering:
 
 - must-have UCS user, agent, and project workflows;
@@ -675,11 +694,12 @@ Until that response exists, this document is a strategy draft, not a frozen impl
 
 ## Recommended Immediate Sequence
 
-1. Receive and attach the pending direct uc-studio-agent feedback.
-2. Resolve the remaining P0 questions, especially state authority, upstream compatibility, API-change policy, and telemetry data boundaries.
-3. Convert this document into a decision-complete implementation plan with one vertical slice and explicit file/package targets.
-4. Create the divergence ledger before modifying frontend or protocol code.
-5. Implement only the first vertical slice, with real integration evidence and an upstream merge rehearsal.
+1. **Done (2026-08-10):** direct uc-studio-agent feedback received and attached (mailbox message `134fb143-3462-4234-b928-93b1d53806fe`, trace `.omo/mailbox-trace.jsonl`).
+2. **Resolve the dual context-ownership conflict (Option 1 preferred):** make `packages/core/src/session/context-epoch.ts` the single authority for live per-session context and demote `packages/core/src/system-context/index.ts` to a read-only projection, validating against migrations `20260605042240` and `20260622142730`.
+3. Resolve the remaining P0 questions — upstream compatibility, API-change policy, and telemetry data boundaries — and publish `@ucs/contracts`.
+4. Convert this document into a decision-complete implementation plan starting with the read-only Web observability slice and its `cache_read` parity test, with explicit file/package targets.
+5. Create the divergence ledger before modifying frontend or protocol code.
+6. Implement Phase 1 (Server Substrate), then the Phase 2 read-only Web slice, with real cache-parity evidence and an upstream merge rehearsal before adding write actions.
 
 ## Research Sources
 
@@ -716,11 +736,19 @@ Repository-local sources:
 - `/Volumes/Topper2TB/Git/uc-studio/README.md`
 - `/Volumes/Topper2TB/Git/uc-studio/AGENTS.md`
 - `/Volumes/Topper2TB/Git/uc-studio/packages/omo-opencode/`
+- `packages/core/src/system-context/index.ts`
+- `packages/core/src/session/context-epoch.ts`
+- `packages/core/src/database/migration/20260605042240_add_context_epoch_agent.ts`
+- `packages/core/src/database/migration/20260622142730_simplify_session_context_epoch.ts`
+- `packages/opencode/test/fork-sync-model.test.ts`
+- `.omo/mailbox-trace.jsonl`
 
 ## Approval State
 
-**Not approved for implementation.** This roadmap is intentionally awaiting:
+**Not yet approved for implementation.** Gate status as of 2026-08-10:
 
-1. direct or relayed uc-studio-agent feedback;
-2. answers to the P0 owner questions;
-3. an explicit decision on the first vertical slice and supported surface priority.
+1. **Satisfied — direct uc-studio-agent feedback.** Received as mailbox message `134fb143-3462-4234-b928-93b1d53806fe` (trace `.omo/mailbox-trace.jsonl`) and incorporated.
+2. **Outstanding — P0 owner questions.** Remaining blockers: state authority and, specifically, the **dual context-ownership conflict** between `packages/core/src/system-context/index.ts` and `packages/core/src/session/context-epoch.ts` (Option 1 preferred), plus upstream-compatibility posture, API-change policy, and telemetry data boundaries.
+3. **Outstanding — first vertical slice and surface priority.** Confirm the first slice as the **read-only Web observability slice** (Phase 2) with the `cache_read` parity acceptance test, ahead of write actions (Phase 3) and `UcsExternalApp` integration (Phase 4).
+
+Implementation may begin only after gates 2 and 3 are cleared and the Phase 0 gate (including the context-ownership resolution and a clean merge rehearsal) passes.
