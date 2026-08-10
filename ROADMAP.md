@@ -346,129 +346,192 @@ The first implementation must decide whether these records are authoritative in 
 
 ## Roadmap Phases
 
-### Phase 0: Alignment And Contract Freeze
+## Roadmap Phases
 
-**Purpose:** Resolve the decisions that would otherwise force rework.
+The roadmap collapses the prior eight-phase plan into six phases. The reorder is deliberate: server substrate precedes any Web work, the first shippable slice is **read-only** observability (cheap to prove, safe to merge), write actions and approvals are isolated into their own phase, external-app integration (Unity and successors) is generalized under one `UcsExternalApp` contract, and Desktop is sequenced last alongside release operations. Every deliverable from the old Phase 0–7 plan is carried forward; see [Deliverable Mapping](#deliverable-mapping-old-phases-07--new-phases-05-no-loss).
+
+### Phase 0: Alignment, Contracts, And Conflict Unblock
+
+**Purpose:** Resolve every decision and structural conflict that would otherwise force rework, and freeze the shared contracts before any surface or server code is written. Absorbs old Phase 0 (Alignment And Contract Freeze) and old Phase 1 (Fork Inventory And Divergence Budget).
 
 **Deliverables:**
 
-- UCS-agent feedback returned and attached to the roadmap.
+- **`@ucs/contracts` package:** a single, versioned, host-neutral home for shared terminology, route/command IDs, domain types, the namespaced `ucs` API surface rule, and the capability manifest. All later phases import contracts from here rather than redeclaring them.
+- **Dual context-ownership conflict resolved (blocking):** `packages/core/src/system-context/index.ts` and `packages/core/src/session/context-epoch.ts` currently both claim authority over "context." Choose one owner before any write path exists:
+  - **Option 1 (preferred):** make `session/context-epoch.ts` the single authority for live, per-session context, and demote `system-context/index.ts` to a read-only projection/provider that feeds epochs but never owns session context. One owner, one write path, consistent with the four-layer authority model and the append/reconcile principle.
+  - **Option 2:** retain both owners behind an explicit reconciliation layer (more moving parts, higher lost-update and migration risk).
+  - Evidence for the chosen option must account for the existing epoch migrations `20260605042240_add_context_epoch_agent` and `20260622142730_simplify_session_context_epoch`.
+- UCS-agent feedback returned and attached to the roadmap (satisfied 2026-08-10; see Evidence Base).
 - Product vocabulary and non-goals approved.
-- Source of truth for project/work state chosen.
+- Source of truth for project/work state chosen (resolves old P0 "state authority" and the context-ownership conflict together).
 - Plugin-first versus host-native criteria approved.
 - Supported surfaces and platform matrix chosen.
 - Privacy, telemetry, and external-network policy chosen.
-
-**Gate:** No implementation begins until P0 questions are answered and the UCS agent confirms the capability boundary.
-
-### Phase 1: Fork Inventory And Divergence Budget
-
-**Purpose:** Establish which files are allowed to diverge and how each divergence survives upstream sync.
-
-**Deliverables:**
-
-- An ownership map for Web, Desktop, TUI, CLI, Server/API, Plugin API, Protocol/Schema, and generated SDKs.
-- A divergence ledger with owner, rationale, upstream status, merge risk, and rollback plan.
-- A rule that all UCS API additions use a namespaced surface such as `ucs` rather than modifying unrelated upstream semantics.
-- Sync rehearsal procedure using `opencode-mirror` → `fork/local`.
+- **Ownership map** for Web, Desktop, TUI, CLI, Server/API, Plugin API, Protocol/Schema, and generated SDKs (from old P1).
+- **Divergence ledger** with owner, rationale, upstream status, merge risk, and rollback plan (from old P1).
+- Namespaced-surface rule: all UCS API additions use a `ucs` surface rather than modifying unrelated upstream semantics (folded into `@ucs/contracts`).
+- Sync rehearsal procedure using `opencode-mirror` → `fork/local`, exercised against `packages/opencode/test/fork-sync-model.test.ts`.
 - Explicit generated-file policy: source edits first, regeneration second, generated outputs never hand-edited.
 
-**Gate:** A clean upstream merge rehearsal and a documented answer for every planned host-native change.
+**Gate:** No implementation begins until the P0 questions are answered, the UCS agent confirms the capability boundary, the dual context-ownership conflict is resolved with recorded rationale, `@ucs/contracts` is published, and a clean upstream merge rehearsal passes.
 
-### Phase 2: UCS Frontend Foundation
+### Phase 1: Server Substrate
 
-**Purpose:** Establish one UCS information architecture across Web/Desktop/TUI without implementing the full product.
-
-**Deliverables:**
-
-- Shared domain navigation: Home, Projects, Work, Agents, Skills, Tools, Integrations, Sessions, Builds, and Settings.
-- Shared terminology and route/command IDs.
-- Web design-system foundation and responsive layout.
-- Desktop shell contract for menus, windows, deep links, notifications, storage, and updater.
-- TUI command map for the same domain operations, adapted to terminal constraints.
-- CLI/server command and API naming conventions.
-
-**Gate:** A clickable or executable shell with one project/session path working on Web, TUI, and CLI/server. Desktop is explicitly deferred to the later Desktop phase; it must consume the same contracts rather than define them.
-
-### Phase 3: First Vertical Slice
-
-**Purpose:** Prove the UCS loop with one real creative workflow.
-
-**Recommended slice:** project → plan → agent task → policy-selected bounded tool action through `unitySuperMCP` → Unity Editor event → review/evidence → updated project state.
+**Purpose:** Stand up only the server-side state, topology, and task-state endpoints the product model needs, and regenerate the client from source schemas — before any Web surface consumes them. Absorbs old Phase 5 (UCS Server And Control Plane).
 
 **Deliverables:**
 
-- One project view and one work-item view.
-- One opinionated agent role with a small approved skill set.
-- One SuperMCP integration with a typed action/event contract.
-- One review/evidence flow.
-- Session and project state visible in Web and available through CLI/server; TUI exposes status/control, not necessarily the full view.
-
-**Gate:** Real end-to-end execution against `unitySuperMCP` and Unity Editor, with isolated test state, recorded evidence, and no mocks standing in for the critical external action. The integration contract must be generic enough to become the template for other UCS applications.
-
-### Phase 4: Capability Plane Integration
-
-**Purpose:** Turn the vertical slice into reusable UCS capabilities.
-
-**Deliverables:**
-
-- Versioned agent/category registry.
-- Skill registry with source, version, tool requirements, and verification metadata.
-- Tool registry with permission and resource policy.
-- Team/task coordination contract.
-- Memory/context integration contract.
-- Provider/model policy and fallback contract.
-- OpenCode adapter with deterministic hook phases.
-- Adapter conformance fixtures that other hosts can consume without importing OpenCode UI/runtime code.
-
-**Gate:** OpenCode behavior is complete enough for the reference product, while shared packages remain host-neutral and Codex/Claude/Pi/Senpi adapters still build against their own contracts.
-
-### Phase 5: UCS Server And Control Plane
-
-**Purpose:** Add only the server-side state and APIs required by the product model.
-
-**Deliverables:**
-
-- Namespaced UCS HTTP API groups and schemas.
-- Project/work/integration endpoints with authorization boundaries.
-- Event stream semantics for session, work, integration, and evidence updates.
-- Generated client SDK updates from source protocol/schema changes.
+- Namespaced UCS HTTP API groups and schemas (built on the `@ucs/contracts` surface).
+- **Topology endpoints:** project/workspace/session topology and relationships.
+- **Task-state endpoints:** project/work/integration state with authorization boundaries.
+- Event-stream semantics for session, work, integration, and evidence updates.
+- **Client regeneration:** generated client SDK updated from source protocol/schema changes; no hand edits to generated output.
 - Migration and rollback policy for persisted data.
 - Headless server mode suitable for Desktop, Web, CLI, and remote operation.
+- CLI/server command and API naming conventions (carried from old P2, since naming rides the substrate).
 
-**Gate:** API exercise coverage, authentication/authorization tests, generated SDK verification, migration test, and an upstream merge rehearsal.
+**Gate:** API exercise coverage, authentication/authorization tests, generated-SDK verification (regenerated, diff-reviewed, no manual edits), a migration test, and an upstream merge rehearsal.
 
-### Phase 6: Surface Completion
+### Phase 2: Read-Only Web Vertical Slice
 
-**Purpose:** Expand the reference experience while preserving deliberate differences between surfaces. Web, TUI, CLI/server, and shared capability work continue in parallel; Desktop is last.
+**Purpose:** Ship the first end-to-end Web slice as **read-only multi-session observability**, and prove — with hard evidence — that driving a session through Web does not degrade provider prompt caching relative to the TUI. This is the cheapest slice that proves the substrate, the Web shell, and cache-safe transport in one shot.
 
-**Web:** Full project/work/agent/skill/integration navigation, review, and multi-session workflows.
-
-**Desktop (last):** Native workspace management, notifications, deep links, terminal/PTY integration, updater and packaging, platform permissions, and platform-specific UX for macOS Apple Silicon, Linux, and Windows.
-
-**TUI:** Fast project/session switching, work status, agent/task control, logs, approvals, and recovery; avoid reproducing Web's visual density.
-
-**CLI/server:** Automation-friendly commands, JSON output, attach/serve, diagnostics, import/export, and operational controls.
-
-**Gate:** Surface-specific QA, accessibility/keyboard review for Web/Desktop, TUI smoke, CLI contract tests, server HTTP exercise, and packaged Desktop smoke.
-
-### Phase 7: Upstream And Release Operations
-
-**Purpose:** Make the fork maintainable as a product, not merely functional as a branch.
+**Slice definition:** read-only, multi-session observability on Web — list active/recent sessions, inspect messages, tool calls, token usage, and live session/project state over the Phase 1 event stream, with **no write actions**.
 
 **Deliverables:**
 
-- Regular upstream sync rehearsal and merge-risk report.
-- Release manifest identifying upstream, UCS capability, and UCS frontend versions.
-- Compatibility matrix for OpenCode host/plugin API versions.
-- Compatibility matrix must cover the stable V1 adapter and the beta V2 adapter separately; V2 changes require a pinned OpenCode release and a published compatible plugin build.
-- Binary build and artifact smoke for supported platforms.
-- Rollback procedure for frontend, plugin, API, and data migrations.
-- Deployment defaults including `"snapshot": false`.
-- Release notes that distinguish upstream changes from UCS changes.
-- Telemetry/privacy target profile and retention/consent audit.
+- Shared domain navigation (Home, Projects, Work, Agents, Skills, Tools, Integrations, Sessions, Builds, Settings) in read-only form (from old P2 navigation).
+- Web design-system foundation and responsive layout (from old P2).
+- Multi-session observability view: concurrent sessions rendered from the Phase 1 topology and event stream (from old P6 Web "multi-session workflows," read-only portion).
+- Read-only project view and work-item view fed by Phase 1 task-state endpoints (read portion of old P3 "one project view / one work-item view").
+- Session and project state visible in Web and available through CLI/server (from old P3).
+- TUI read/status parity for the same domain operations, used as the cache baseline (from old P2 TUI command map).
+- **Prompt-cache proof (acceptance-critical):** a session driven through Web reports the same `cache_read` ratio as the identical session driven through the TUI. Capture provider `cache_read` / `cache_write` token counts on identical prompt prefixes over both surfaces; the Web-driven `cache_read` ratio must be at parity with the TUI baseline (no cache-busting regression introduced by the Web transport or request shaping).
 
-**Gate:** A signed/verified artifact, real server bootstrap, Web/Desktop/TUI/CLI smoke coverage, and a documented rollback path.
+**Gate:** Package-local typecheck; targeted unit/browser tests; Playwright evidence of read-only multi-session observation against a live server; and a recorded cache-parity measurement showing Web `cache_read` ratio ≥ TUI baseline for the same session. Desktop is explicitly deferred to Phase 5 and must consume these contracts, not define them.
+
+### Phase 3: Write Actions & Approvals
+
+**Purpose:** Introduce mutation to the read-only slice under policy-matched approvals — prompts, edits, and other write actions — with the approval decision as a first-class, policy-selected step.
+
+**Deliverables:**
+
+- Policy-matched approval gates: project-, work-item-, tool-call-, and policy-level approval resolution (realizes old P0 "policy-selected approval" and old P6 approval affordances).
+- Write actions on the Phase 2 views: send prompts, apply edits, mutate project/work state through authorized Phase 1 endpoints (write portion of old P3/P6 project and work-item views).
+- Approval UX on Web and approval/recovery affordances on TUI (write/approval portion of old P6 TUI completion).
+- Consumes the tool permission/resource policy defined in Phase 4's registries where available; where a policy is not yet registered, writes remain gated by default-deny.
+- CLI/server write and operational commands for the same actions (write portion of old P6 CLI).
+
+**Gate:** Approval-policy tests (grant/deny/escalation paths), write-path authorization tests, Playwright evidence of an approved write applied end-to-end, and a default-deny test proving unapproved mutations cannot reach external state.
+
+### Phase 4: UcsExternalApp Integration
+
+**Purpose:** Prove the external-application loop with a real integration and turn the slice into reusable UCS capabilities. Generalizes the old Unity slice under one `UcsExternalApp` contract and absorbs the capability-plane work. Absorbs old Phase 3 (First Vertical Slice / Unity) and old Phase 4 (Capability Plane Integration).
+
+**Reference slice:** project → plan → agent task → policy-approved bounded action through a `UcsExternalApp` adapter → external event → review/evidence → updated project state. **Unity via `unitySuperMCP` is the first concrete `UcsExternalApp` adapter**, and the contract must be generic enough to template Unreal, Godot, Roblox, Blender, Figma, Xcode, and Android Studio.
+
+**Deliverables:**
+
+- `UcsExternalApp` integration contract: typed action/event schema, authentication, capability descriptor, and failure behavior (generalized from old P3 SuperMCP contract).
+- Unity `unitySuperMCP` adapter implementing the contract end-to-end (old P3 slice).
+- One opinionated agent role with a small approved skill set driving the external action (old P3).
+- One review/evidence flow for external actions (old P3).
+- Versioned agent/category registry (old P4).
+- Skill registry with source, version, tool requirements, and verification metadata (old P4).
+- Tool registry with permission and resource policy — the policy source consumed by Phase 3 approvals (old P4).
+- Team/task coordination contract (old P4; contract seed from `@ucs/contracts`).
+- Memory/context integration contract, aligned with the Phase 0 context-ownership decision (old P4).
+- Provider/model policy and fallback contract (old P4).
+- OpenCode adapter with deterministic hook phases (old P4).
+- Adapter conformance fixtures other hosts can consume without importing OpenCode UI/runtime code (old P4).
+
+**Gate:** Real end-to-end execution against `unitySuperMCP` and the Unity Editor, with isolated test state, recorded evidence, and no mocks standing in for the critical external action; plus adapter conformance fixtures passing and shared packages remaining host-neutral so Codex/Claude/Pi-Senpi adapters still build against their own contracts.
+
+### Phase 5: Desktop Last & Release Operations
+
+**Purpose:** Complete the Desktop surface and make the fork maintainable as a product. Absorbs old Phase 6 (Desktop portion of Surface Completion) and old Phase 7 (Upstream And Release Operations).
+
+**Deliverables:**
+
+- **Desktop (last):** Electron shell, native menus, windows, storage, updater, deep links, terminal/PTY integration, platform permissions, and platform-specific UX for macOS Apple Silicon, Linux, and Windows (old P6 Desktop). Desktop consumes the Phase 0 shell contract and the Phase 1–4 web/server/capability contracts; it does not define domain authority.
+- Desktop shell contract realized (menus, windows, deep links, notifications, storage, updater) from old P2, now implemented rather than only specified.
+- Final TUI/CLI surface completion polish layered on the Phase 2–4 functional surfaces (remaining old P6 TUI/CLI completion).
+- Regular upstream sync rehearsal and merge-risk report (old P7).
+- Release manifest identifying upstream, UCS capability, and UCS frontend versions (old P7).
+- Compatibility matrix for OpenCode host/plugin API versions (old P7).
+- Compatibility matrix covering the stable V1 adapter and beta V2 adapter separately; V2 changes require a pinned OpenCode release and a published compatible plugin build (old P7).
+- Binary build and artifact smoke for supported platforms (old P7).
+- Rollback procedure for frontend, plugin, API, and data migrations (old P7; data-migration rollback seeded in Phase 1).
+- Deployment defaults including `"snapshot": false` (old P7).
+- Release notes distinguishing upstream changes from UCS changes (old P7).
+- Telemetry/privacy target profile and retention/consent audit — policy chosen in Phase 0, audited here (old P7).
+
+**Gate:** A signed/verified artifact; real server bootstrap; Web/Desktop/TUI/CLI smoke coverage; packaged Desktop smoke on each supported platform; accessibility/keyboard review for Web/Desktop; and a documented rollback path.
+
+### Deliverable Mapping: Old Phases 0–7 → New Phases 0–5 (no loss)
+
+Every old deliverable is carried into the six-phase model. "Primary" is the phase that owns the deliverable; "Also in" notes phases where a precursor or split portion lands.
+
+| Old phase | Old deliverable | Primary new phase | Also in |
+|---|---|---|---|
+| P0 Alignment | UCS-agent feedback returned and attached | P0 | — |
+| P0 Alignment | Product vocabulary and non-goals approved | P0 | — |
+| P0 Alignment | Source of truth for project/work state chosen | P0 (conflict unblock) | — |
+| P0 Alignment | Plugin-first vs host-native criteria approved | P0 | — |
+| P0 Alignment | Supported surfaces and platform matrix chosen | P0 | — |
+| P0 Alignment | Privacy/telemetry/external-network policy chosen | P0 | P5 (audit) |
+| P0 Alignment | Gate: P0 questions answered + capability boundary | P0 | — |
+| P1 Inventory | Ownership map (all surfaces + SDKs) | P0 | — |
+| P1 Inventory | Divergence ledger | P0 | — |
+| P1 Inventory | Namespaced `ucs` API rule | P0 (`@ucs/contracts`) | — |
+| P1 Inventory | Sync rehearsal `opencode-mirror`→`fork/local` | P0 | P5 |
+| P1 Inventory | Generated-file policy | P0 | P1 (SDK), P5 |
+| P1 Inventory | Gate: clean merge rehearsal + host-native answers | P0 | — |
+| P2 Frontend | Shared domain navigation | P2 (read-only) | P3 (write) |
+| P2 Frontend | Shared terminology + route/command IDs | P0 (`@ucs/contracts`) | — |
+| P2 Frontend | Web design-system foundation + responsive layout | P2 | — |
+| P2 Frontend | Desktop shell contract | P5 | P0 (contract spec) |
+| P2 Frontend | TUI command map | P2 (read baseline) | P3 (write/approvals) |
+| P2 Frontend | CLI/server command + API naming conventions | P1 | — |
+| P2 Frontend | Gate: shell with one path on Web/TUI/CLI (Desktop deferred) | P2 | P5 (Desktop) |
+| P3 Slice | Unity `unitySuperMCP` → Unity Editor slice | P4 (`UcsExternalApp`) | — |
+| P3 Slice | One project view + one work-item view | P2 (read) | P3 (write), P4 (integration) |
+| P3 Slice | One opinionated agent role + small skill set | P4 | — |
+| P3 Slice | One SuperMCP integration (typed action/event) | P4 | — |
+| P3 Slice | One review/evidence flow | P4 | P2 (read view) |
+| P3 Slice | Session/project state in Web + via CLI/server | P2 | P1 (endpoints) |
+| P3 Slice | Gate: real end-to-end vs Unity, no mocks | P4 | — |
+| P4 Capability | Versioned agent/category registry | P4 | — |
+| P4 Capability | Skill registry (source/version/verification) | P4 | — |
+| P4 Capability | Tool registry (permission + resource policy) | P4 | P3 (approvals consume) |
+| P4 Capability | Team/task coordination contract | P4 | P0 (contract seed) |
+| P4 Capability | Memory/context integration contract | P4 | P0 (context-owner decision) |
+| P4 Capability | Provider/model policy + fallback contract | P4 | — |
+| P4 Capability | OpenCode adapter with deterministic hook phases | P4 | — |
+| P4 Capability | Adapter conformance fixtures | P4 | — |
+| P4 Capability | Gate: reference-complete + host-neutral packages | P4 | — |
+| P5 Server | Namespaced UCS HTTP API groups + schemas | P1 | — |
+| P5 Server | Project/work/integration endpoints + authz (topology + task-state) | P1 | — |
+| P5 Server | Event-stream semantics | P1 | P2 (consumer) |
+| P5 Server | Generated client SDK updates (client regeneration) | P1 | — |
+| P5 Server | Migration + rollback policy for persisted data | P1 | P5 (rollback) |
+| P5 Server | Headless server mode | P1 | — |
+| P5 Server | Gate: API/authz/SDK/migration tests + merge rehearsal | P1 | — |
+| P6 Surface | Web: full nav, review, multi-session workflows | P2 (multi-session, read) | P3 (write/review) |
+| P6 Surface | Desktop (last): native workspace, updater, packaging, platform UX | P5 | — |
+| P6 Surface | TUI: switching, status, agent/task control, approvals, recovery | P3 (approvals/control) | P2 (read), P5 (polish) |
+| P6 Surface | CLI/server: automation, JSON, attach/serve, diagnostics, import/export | P1 (substrate) | P3 (write ops), P5 (polish) |
+| P6 Surface | Gate: per-surface QA + packaged Desktop smoke | Split | P2/P3/P4 per surface; P5 (Desktop) |
+| P7 Release | Regular upstream sync rehearsal + merge-risk report | P5 | P0 (first rehearsal) |
+| P7 Release | Release manifest (upstream/capability/frontend versions) | P5 | — |
+| P7 Release | Compatibility matrix for host/plugin API versions | P5 | — |
+| P7 Release | V1 vs V2 adapter compatibility matrix (separate) | P5 | — |
+| P7 Release | Binary build + artifact smoke for supported platforms | P5 | — |
+| P7 Release | Rollback procedure (frontend/plugin/API/data) | P5 | P1 (data rollback) |
+| P7 Release | Deployment defaults incl. `"snapshot": false` | P5 | — |
+| P7 Release | Release notes: upstream vs UCS changes | P5 | — |
+| P7 Release | Telemetry/privacy profile + retention/consent audit | P5 | P0 (policy) |
+| P7 Release | Gate: signed artifact + bootstrap + smoke + rollback | P5 | — |
 
 ## Upstream Sync Strategy
 
