@@ -128,7 +128,7 @@ This plane should be reusable across hosts and should not import Web, Electron, 
 - project plans, tasks, decisions, and milestones;
 - team coordination and durable mailboxes;
 - memory/context integration;
-- SuperMCP integration descriptors and lifecycle;
+- `UcsExternalApp` integration descriptors and lifecycle (via SuperMCP transport where applicable);
 - provider/model policy and fallback rules;
 - audit/evidence records;
 - privacy and telemetry policy.
@@ -179,6 +179,26 @@ The following internal implementation details are subject to change and must NOT
 - **Pipeline internals**: Execution flow of the 6-phase agent pipeline. Expose phase names for observability, never let a frontend inject at a phase.
 - **Routing tables**: Category and model routing configurations.
 - **Hashline format**: The `LINE#ID` string format used for line-level tracking.
+
+### UcsExternalApp Contract
+
+Rather than building Unity-specific frontend plumbing, define a generic `UcsExternalApp` integration contract with Unity (`unitySuperMCP`) as implementation #1. This generalizes to Unreal, Godot, Roblox, Blender, Figma, Xcode, and Android Studio.
+
+#### 6 Core Contract Verbs
+Every external application adapter implements six standard capabilities:
+1. `connect`: Establish connection, authenticate, and retrieve remote application state.
+2. `status`: Query live connection health, active mode, and scene/project context.
+3. `capabilities`: Inspect supported external actions, tools, and event types.
+4. `checkpoint`: Trigger a user-visible restore point or snapshot before destructive operations.
+5. `blocked-on-human`: Signal that the external application is halted waiting for human modal interaction (e.g. Unity Safe Mode dialog, Xcode prompt).
+6. `stream-progress`: Stream intermediate status for long-running operations (e.g. domain reload, build/compile).
+
+#### 5 Event/State Requirements
+1. **Streaming progress**: Long operations (domain reload, shader compile) take minutes and invalidate handles. Requires streaming progress events (directly parallel to AFT's `bg_events` StreamData lane; build one streaming progress abstraction for both).
+2. **Modal/blocking interruption**: External applications throw OS-level modal dialogs that halt automation. "External app blocked, human input required" must be a first-class agent state (`blocked-on-human`), not an error.
+3. **Connection lifecycle**: Mid-session reconnect must be survivable without taking down the OpenCode session or dropping history.
+4. **Restore points**: Surface checkpoint and restore operations as user-visible restore points.
+5. **Background-throttle awareness**: External applications (like Unity Editor) throttle CPU/GPU when unfocused. The UI/agent must distinguish a throttled, healthy job from a stalled or hung process to prevent users from killing valid runs.
 
 ### 5. Four-Layer State Authority Model
 
