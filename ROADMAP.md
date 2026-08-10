@@ -188,6 +188,29 @@ The product profile should be:
 
 This is an engineering target profile, not a legal conclusion. Counsel or a qualified privacy reviewer must validate the final deployment and jurisdictional obligations.
 
+## Must-Have Workflows
+
+### Tier 1 (Non-negotiable)
+- **Multi-session concurrency with visible session tree**: Support one primary agent coordinating with N subagents, rendering the topology clearly in the interface (1 primary + N subagents is the standard pattern; today topology is invisible, which is a major debugging cost).
+- **Background task lifecycle stream**: Implement the `bg_events` StreamData lane, `ParentWakeNotifier`, and a strict FIFO queue capped at 5 concurrent tasks per model/provider (`providerID/modelID`).
+- **Durable work state via Boulder**: Track execution state using `packages/boulder-state` and persist progress locally in `.omo/boulder.json`. Do not invent a second work model.
+- **Policy-matched approvals with audit trail**: Enforce permission rules for tool execution with policy match shown, and maintain a tamper-evident audit log of user approvals.
+- **Todo/plan visibility**: Expose active plans and todo lists directly in the interface as first-class elements, not buried in chat scrollback.
+
+### Tier 2
+- **Cross-project mailbox inbox**: Provide a unified view of inbound messages and requests sent between different project agents.
+- **Team Mode topology**: Manage agent team configurations and roles stored under `~/.omo/teams/{name}/` (`config.json`, `state.json`, `mailbox/`, `tasklist.jsonl`, `worktrees/`).
+- **Evidence browser**: Allow users to inspect generated artifacts, logs, and run details stored in `.omo/evidence/`.
+- **Diff review**: Render code changes and file diffs clearly before staging or committing.
+- **Skill/MCP inspector**: List active Model Context Protocol servers, registered tools, and loaded skills with provenance (`source_repo`, `source_rev`, per-file sha256).
+
+### Tier 3 (Deferred)
+- **Model/provider config editors**: Graphical interfaces to manage API keys, endpoints, and model parameters.
+- **Telemetry dashboards**: Visual charts for token usage, latency, and cost tracking.
+- **Marketplace UI**: A browser for discovering and installing community skills or plugins.
+
+> **Risk Note**: Avoid drifting into a generic chat window with buttons. The terminal and web interfaces must render the state that the harness already tracks, rather than inventing separate UI-only state.
+
 ## Ownership Matrix
 
 | Surface | UCS owns | OpenCode upstream owns | Primary gate |
