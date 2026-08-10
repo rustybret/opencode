@@ -158,6 +158,28 @@ The bridge between the planes should be explicit:
 - SuperMCP event and command contracts for external creative applications.
 - Versioned capability manifest describing which UCS features a host supports.
 
+#### Stable Contracts (`@ucs/contracts`)
+To ensure interoperability across the ecosystem and insulate the fork from sync breakages, publish `@ucs/contracts` holding only stable schemas and interfaces:
+- **Plugin ABI**: Standard execution contract `server(input, options) -> Promise<Hooks>`.
+- **Boulder state schema**: JSON structure for tracking task execution and recovery (`packages/boulder-state` + `.omo/boulder.json`).
+- **Team Mode storage layout**: Directory structure and configuration format (`~/.omo/teams/{name}/`).
+- **Zod v4 config schema**: Validation schema for project-level configuration.
+- **Mailbox envelope**: Message routing structure containing `messageId`, `correlationId`, `inReplyToMessageId`, `intent`, `priority`, and `hopPath`.
+- **Skill manifest provenance**: Security metadata tracking `source_repo`, `source_rev`, and per-file sha256 hashes.
+
+#### Core Dependency Law
+All stable contracts must sit at the **Schema tier or below**. This preserves the strict architecture dependency direction:
+$$\text{Schema} \rightarrow \{\text{Core}, \text{Protocol}\} \rightarrow \text{Server}$$
+Client runtime code may depend on Schema and Protocol, but never Core or Server. A `@ucs/contracts` package consumed by both frontend and server must obey this law so running `bun run generate` from `packages/client` never breaks.
+
+#### Unstable Internals (DO NOT FREEZE)
+The following internal implementation details are subject to change and must NOT be exposed as stable contracts:
+- **Message layout**: Internal `m[0]` and `m[1]` message structures (owned by Magic Context).
+- **AFT transport selection**: Logic choosing between `BridgePool` stdio and `SubcTransportPool` daemon. Expose capabilities, never the transport.
+- **Pipeline internals**: Execution flow of the 6-phase agent pipeline. Expose phase names for observability, never let a frontend inject at a phase.
+- **Routing tables**: Category and model routing configurations.
+- **Hashline format**: The `LINE#ID` string format used for line-level tracking.
+
 ### 5. Four-Layer State Authority Model
 
 “A mixture of all four” is workable only if each layer has a narrow authority boundary:
