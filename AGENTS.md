@@ -42,6 +42,10 @@ The wrapper pins the ORW version, refuses to run unless `install_cli=false`, and
 
 Operator runbook: `agent-harness/docs/runbooks/OpenCode-Release-Watcher.md`
 
+### Deployment policy: snapshots disabled by default
+
+OpenCode deployments of this fork must set `"snapshot": false` in their `opencode.json` by default. The snapshot feature (`packages/core/src/v1/config/config.ts` `snapshot` key, honored in `packages/opencode/src/snapshot/index.ts`) creates per-instance git-store folders under the OS temp/cache dirs — measured >1GB per instance during heavy runs, filling the boot drive. Verified fix 2026-08-09: with snapshots disabled, the full test suite ran with zero folders created. Enabling snapshot tracking is opt-in and should be a deliberate, documented choice (undo/revert history trade-off).
+
 ## Commits and PR Titles
 
 Use conventional commit-style messages and PR titles: `type(scope): summary`.
