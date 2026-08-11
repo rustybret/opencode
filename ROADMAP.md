@@ -362,8 +362,6 @@ The first implementation must decide whether these records are authoritative in 
 
 ## Roadmap Phases
 
-## Roadmap Phases
-
 The roadmap collapses the prior eight-phase plan into six phases. The reorder is deliberate: server substrate precedes any Web work, the first shippable slice is **read-only** observability (cheap to prove, safe to merge), write actions and approvals are isolated into their own phase, external-app integration (Unity and successors) is generalized under one `UcsExternalApp` contract, and Desktop is sequenced last alongside release operations. Every deliverable from the old Phase 0–7 plan is carried forward; see [Deliverable Mapping](#deliverable-mapping-old-phases-07--new-phases-05-no-loss).
 
 ### Phase 0: Alignment, Contracts, And Conflict Unblock
@@ -402,6 +400,7 @@ The roadmap collapses the prior eight-phase plan into six phases. The reorder is
 - **Task-state endpoints:** project/work/integration state with authorization boundaries.
 - Event-stream semantics for session, work, integration, and evidence updates.
 - **Client regeneration:** generated client SDK updated from source protocol/schema changes; no hand edits to generated output.
+- **Placement decision (2026-08-11):** the namespaced `ucs` API group lives in the **instance `HttpApi`** (`packages/opencode/src/server/routes/instance/httpapi/groups/ucs.ts`), not in `packages/protocol`'s `makeApiFromGroup`. Rationale: (1) `UcsGroup` endpoints read instance-owned services (`Session.Service`, `SessionStatus.Service`, `Workspace.Service`, `EventV2Bridge.Service`) that `packages/server` cannot reach — protocol handlers are limited to Core services, so a protocol-level UCS group could not back the topology/task-state surface; (2) the modern client SDK (`packages/client` codegen) only generates from protocol groups, so instance routes are not SDK surface; (3) this keeps `packages/protocol` and `packages/core` import-free of fork-owned packages — `@ucs/contracts` remains at the Schema tier, depended on by the server and by fork surfaces, never by Core/Protocol. Client regeneration is still exercised as a gate (`packages/client` generate must produce a zero diff; the legacy SDK is regenerated from the `PublicApi` OpenAPI, which includes the instance routes).
 - Migration and rollback policy for persisted data.
 - Headless server mode suitable for Desktop, Web, CLI, and remote operation.
 - CLI/server command and API naming conventions (carried from old P2, since naming rides the substrate).

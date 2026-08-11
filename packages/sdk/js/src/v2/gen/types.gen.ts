@@ -11000,6 +11000,291 @@ export type TuiControlResponseResponses = {
 
 export type TuiControlResponseResponse = TuiControlResponseResponses[keyof TuiControlResponseResponses]
 
+export type UcsCapabilitiesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/ucs/capabilities"
+}
+
+export type UcsCapabilitiesErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type UcsCapabilitiesError = UcsCapabilitiesErrors[keyof UcsCapabilitiesErrors]
+
+export type UcsCapabilitiesResponses = {
+  /**
+   * Versioned capability manifest for this host.
+   */
+  200: {
+    schemaVersion: 1
+    host: string
+    hostVersion: string
+    capabilities: Array<{
+      id:
+        | "session-topology"
+        | "task-state"
+        | "event-stream"
+        | "multi-session"
+        | "boulder-state"
+        | "mailbox"
+        | "team-mode"
+        | "evidence"
+        | "approvals"
+        | "external-app"
+        | "skill-registry"
+        | "tool-registry"
+        | "agent-registry"
+      status: "supported" | "beta" | "planned" | "absent"
+      version: string
+    }>
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type UcsCapabilitiesResponse = UcsCapabilitiesResponses[keyof UcsCapabilitiesResponses]
+
+export type UcsTopologyData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/ucs/topology"
+}
+
+export type UcsTopologyErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type UcsTopologyError = UcsTopologyErrors[keyof UcsTopologyErrors]
+
+export type UcsTopologyResponses = {
+  /**
+   * Session tree and project context for the routed location.
+   */
+  200: {
+    location: {
+      directory: string
+      workspace?: string
+      project?: string
+    }
+    project?: {
+      id: string
+      name?: string
+      worktree?: string
+    }
+    entries: Array<{
+      id: string
+      title: string
+      agent?: string
+      model?: string
+      parentID?: string
+      projectID?: string
+      directory?: string
+      time?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      summary?: {
+        additions: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        deletions: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        files: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      }
+      cost?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      tokens?: {
+        input?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        output?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        cacheRead?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        cacheWrite?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      }
+      role: "primary" | "subagent"
+      status?: string
+      currentStep?: string
+    }>
+    activeSessionCount: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type UcsTopologyResponse = UcsTopologyResponses[keyof UcsTopologyResponses]
+
+export type UcsProjectsData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/ucs/projects"
+}
+
+export type UcsProjectsErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type UcsProjectsError = UcsProjectsErrors[keyof UcsProjectsErrors]
+
+export type UcsProjectsResponses = {
+  /**
+   * Project list visible from the routed location.
+   */
+  200: Array<{
+    id: string
+    name?: string
+    worktree?: string
+  }>
+}
+
+export type UcsProjectsResponse = UcsProjectsResponses[keyof UcsProjectsResponses]
+
+export type UcsWorkData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/ucs/work"
+}
+
+export type UcsWorkErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type UcsWorkError = UcsWorkErrors[keyof UcsWorkErrors]
+
+export type UcsWorkResponses = {
+  /**
+   * Work tracking, integrations, and evidence state.
+   */
+  200: {
+    location: {
+      directory: string
+      workspace?: string
+      project?: string
+    }
+    boulder: {
+      present: boolean
+      version?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      taskGoal?: string
+      currentStepId?: string
+      totalSteps?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      completedSteps?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      failedSteps?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      pendingSteps?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      updatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+    integrations: Array<{
+      id: string
+      connected: boolean
+      name?: string
+      status?: string
+      detail?: string
+    }>
+    evidenceCount: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type UcsWorkResponse = UcsWorkResponses[keyof UcsWorkResponses]
+
+export type UcsSessionsData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    scope?: "project"
+    status?: string
+    limit?: string
+  }
+  url: "/ucs/sessions"
+}
+
+export type UcsSessionsErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type UcsSessionsError = UcsSessionsErrors[keyof UcsSessionsErrors]
+
+export type UcsSessionsResponses = {
+  /**
+   * Session list with role and status context.
+   */
+  200: {
+    entries: Array<{
+      id: string
+      title: string
+      agent?: string
+      model?: string
+      parentID?: string
+      projectID?: string
+      directory?: string
+      time?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      summary?: {
+        additions: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        deletions: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        files: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      }
+      cost?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      tokens?: {
+        input?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        output?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        cacheRead?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+        cacheWrite?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      }
+      role: "primary" | "subagent"
+      status?: string
+      currentStep?: string
+    }>
+  }
+}
+
+export type UcsSessionsResponse = UcsSessionsResponses[keyof UcsSessionsResponses]
+
+export type UcsEventsData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/ucs/events"
+}
+
+export type UcsEventsErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type UcsEventsError = UcsEventsErrors[keyof UcsEventsErrors]
+
+export type UcsEventsResponses = {
+  /**
+   * Server-sent event stream of session, work, integration, and evidence updates.
+   */
+  200: string
+}
+
+export type UcsEventsResponse = UcsEventsResponses[keyof UcsEventsResponses]
+
 export type ExperimentalWorkspaceAdapterListData = {
   body?: never
   path?: never

@@ -3,7 +3,7 @@ import { Schema } from "effect"
 /**
  * Team Mode storage layout and metadata specifications (~/.omo/teams/{name}/).
  */
-export const TeamMemberRole = Schema.Literal("lead", "worker", "critic", "researcher", "specialist")
+export const TeamMemberRole = Schema.Literals(["lead", "worker", "critic", "researcher", "specialist"])
 export type TeamMemberRole = typeof TeamMemberRole.Type
 
 export const TeamMember = Schema.Struct({

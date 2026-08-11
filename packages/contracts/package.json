@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@ucs/contracts",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -10,11 +10,10 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "typecheck": "bun typecheck"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "effect": "catalog:",
-    "zod": "^3.23.8"
+    "effect": "catalog:"
   },
   "devDependencies": {
     "@tsconfig/bun": "catalog:",

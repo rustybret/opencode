@@ -3,7 +3,7 @@ import { Schema } from "effect"
 /**
  * Boulder state schema for task tracking, execution progress, and restart recovery.
  */
-export const BoulderStepStatus = Schema.Literal("pending", "in_progress", "completed", "failed", "cancelled")
+export const BoulderStepStatus = Schema.Literals(["pending", "in_progress", "completed", "failed", "cancelled"])
 export type BoulderStepStatus = typeof BoulderStepStatus.Type
 
 export const BoulderStep = Schema.Struct({

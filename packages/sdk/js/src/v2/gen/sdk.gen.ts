@@ -263,6 +263,18 @@ import type {
   TuiShowToastResponses,
   TuiSubmitPromptErrors,
   TuiSubmitPromptResponses,
+  UcsCapabilitiesErrors,
+  UcsCapabilitiesResponses,
+  UcsEventsErrors,
+  UcsEventsResponses,
+  UcsProjectsErrors,
+  UcsProjectsResponses,
+  UcsSessionsErrors,
+  UcsSessionsResponses,
+  UcsTopologyErrors,
+  UcsTopologyResponses,
+  UcsWorkErrors,
+  UcsWorkResponses,
   V2AgentListErrors,
   V2AgentListResponses,
   V2CommandListErrors,
@@ -5021,6 +5033,176 @@ export class Tui extends HeyApiClient {
   }
 }
 
+export class Ucs extends HeyApiClient {
+  /**
+   * UCS capability manifest
+   *
+   * Read the versioned capability manifest describing which UCS features this host supports.
+   */
+  public capabilities<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<UcsCapabilitiesResponses, UcsCapabilitiesErrors, ThrowOnError>({
+      url: "/ucs/capabilities",
+      ...options,
+    })
+  }
+
+  /**
+   * Session and project topology
+   *
+   * Read-only topology for the routed location: the session tree (primary + subagents), project context, and active-session count.
+   */
+  public topology<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<UcsTopologyResponses, UcsTopologyErrors, ThrowOnError>({
+      url: "/ucs/topology",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Project list
+   *
+   * Read-only list of projects visible from the routed location.
+   */
+  public projects<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<UcsProjectsResponses, UcsProjectsErrors, ThrowOnError>({
+      url: "/ucs/projects",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Task state
+   *
+   * Read-only task state for the routed location: boulder progress, integration connections, evidence.
+   */
+  public work<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<UcsWorkResponses, UcsWorkErrors, ThrowOnError>({
+      url: "/ucs/work",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Session list
+   *
+   * Read-only session rows with role/status context, filterable by scope, status, and limit.
+   */
+  public sessions<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      scope?: "project"
+      status?: string
+      limit?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "scope" },
+            { in: "query", key: "status" },
+            { in: "query", key: "limit" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<UcsSessionsResponses, UcsSessionsErrors, ThrowOnError>({
+      url: "/ucs/sessions",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Subscribe to ucs events
+   *
+   * Server-sent event stream of session, work, integration, and evidence updates.
+   */
+  public events<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).sse.get<UcsEventsResponses, UcsEventsErrors, ThrowOnError>({
+      url: "/ucs/events",
+      ...options,
+      ...params,
+    })
+  }
+}
+
 export class Health extends HeyApiClient {
   /**
    * Check server health
@@ -7210,6 +7392,11 @@ export class OpencodeClient extends HeyApiClient {
   private _tui?: Tui
   get tui(): Tui {
     return (this._tui ??= new Tui({ client: this.client }))
+  }
+
+  private _ucs?: Ucs
+  get ucs(): Ucs {
+    return (this._ucs ??= new Ucs({ client: this.client }))
   }
 
   private _v2?: V2

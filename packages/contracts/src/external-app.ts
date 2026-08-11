@@ -3,24 +3,20 @@ import { Schema } from "effect"
 /**
  * UcsExternalApp 6 Core Contract Verbs and state requirements.
  */
-export const UcsExternalAppVerb = Schema.Literal(
-  "connect",
+export const UcsExternalAppVerb = Schema.Literals(["connect",
   "status",
   "capabilities",
   "checkpoint",
   "blocked-on-human",
-  "stream-progress",
-)
+  "stream-progress",])
 export type UcsExternalAppVerb = typeof UcsExternalAppVerb.Type
 
-export const UcsExternalAppState = Schema.Literal(
-  "disconnected",
+export const UcsExternalAppState = Schema.Literals(["disconnected",
   "connecting",
   "connected",
   "blocked-on-human",
   "busy-streaming",
-  "error",
-)
+  "error",])
 export type UcsExternalAppState = typeof UcsExternalAppState.Type
 
 export interface UcsExternalAppAdapter {

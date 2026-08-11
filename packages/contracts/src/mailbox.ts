@@ -3,7 +3,7 @@ import { Schema } from "effect"
 /**
  * Cross-project mailbox envelope schema.
  */
-export const MailboxIntent = Schema.Literal("question", "quick", "impl", "review", "work-loop", "plan")
+export const MailboxIntent = Schema.Literals(["question", "quick", "impl", "review", "work-loop", "plan"])
 export type MailboxIntent = typeof MailboxIntent.Type
 
 export const MailboxEnvelope = Schema.Struct({
