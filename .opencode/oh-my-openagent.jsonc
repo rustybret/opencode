@@ -76,6 +76,10 @@
         "access": "allow",
         "intent_budget": "plan",
       },
+      "uc-studio-8ce41322": {
+        "access": "allow",
+        "intent_budget": "plan",
+      },
     },
   },
 }
