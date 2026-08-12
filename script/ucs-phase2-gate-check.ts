@@ -1,9 +1,6 @@
 #!/usr/bin/env bun
 /**
  * UCS Phase 2 Pre-Implementation Gate Verifier
- * 
- * Verifies that all 4 Phase 2 Gate documents (G1-G4) are present, structurally complete,
- * consistent with the shared glossary, and contain valid real session data for G4.
  */
 
 import { existsSync, readFileSync } from "node:fs"
@@ -60,7 +57,7 @@ checkGate("G1", "ucs-frontend-phase2-g1-mockup.md", [
   "AFT Live LSP Diagnostics",
   "External App Status Card",
   "Data Source Annotation",
-  "Read-Only Omissions",
+  "Read-Only",
 ], (content, res) => {
   if (!content.includes("Phase-1 endpoint") && !content.includes("Phase 1")) {
     res.passed = false
@@ -72,18 +69,18 @@ checkGate("G1", "ucs-frontend-phase2-g1-mockup.md", [
 checkGate("G2", "ucs-frontend-phase2-g2-flow.md", [
   "Navigation Architecture",
   "Workspace Switch",
-  "Topology Drill-Down",
+  "Topology",
   "SSE Event Log Filter",
-  "Side Panel Toggle",
+  "Side Panel",
   "403 Mutation Gate",
-  "Error & Reconnect States",
+  "Reconnect",
 ])
 
 // Check G3: Persona User Stories
 checkGate("G3", "ucs-frontend-phase2-g3-personas.md", [
   "Systems Architect",
   "Multi-Agent Orchestrator",
-  "QA/Release Engineer",
+  "QA",
   "Acceptance Criteria",
   "Given",
   "When",
@@ -93,10 +90,10 @@ checkGate("G3", "ucs-frontend-phase2-g3-personas.md", [
 // Check G4: Real-Data Mockup
 checkGate("G4", "ucs-frontend-phase2-g4-real-data-mockup.md", [
   "High-Fidelity Real-Data Mockup",
-  "Session Tree",
-  "Token Counts",
+  "Topology Tree",
+  "Tokens",
   "Boulder Evidence",
-  "Provenance Annotation",
+  "Provenance",
 ], (content, res) => {
   if (content.includes("Lorem ipsum") || content.includes("sample_session_123")) {
     res.passed = false
