@@ -1,0 +1,32 @@
+{
+  "pending": [
+    {
+      "messageId": "957f6738-d900-424c-b3c6-583d562503f4",
+      "sessionId": "ses_0d47c1605ffecvLUZb6i42HF9r",
+      "reservedPath": "/Volumes/Topper2TB/Git/opencode/coordination_notes/agent-harness-0367cd71/.delivering-957f6738-d900-424c-b3c6-583d562503f4.md",
+      "dispatchedAt": 1783141496701,
+      "state": "history_confirmed"
+    },
+    {
+      "messageId": "128aef5a-7947-41f3-98b1-bdf9013989dd",
+      "sessionId": "ses_0a598ba1bffe6H7sb79N5bkv75",
+      "reservedPath": "/Volumes/Topper2TB/Git/opencode/coordination_notes/agent-harness-0367cd71/.delivering-128aef5a-7947-41f3-98b1-bdf9013989dd.md",
+      "dispatchedAt": 1783928162173,
+      "state": "history_confirmed"
+    },
+    {
+      "messageId": "49bf3b02-3415-41f3-b7e8-f0ae23866a8b",
+      "sessionId": "ses_08a09462cffeAASqrV4J87MvcD",
+      "reservedPath": "/Volumes/Topper2TB/Git/opencode/coordination_notes/opencode-gemini-ec2cac67/.delivering-49bf3b02-3415-41f3-b7e8-f0ae23866a8b.md",
+      "dispatchedAt": 1784390535951,
+      "state": "history_confirmed"
+    },
+    {
+      "messageId": "17e5cd0d-a8ec-409c-98d4-118d435d3fa6",
+      "sessionId": "ses_08a09462cffeAASqrV4J87MvcD",
+      "reservedPath": "/Volumes/Topper2TB/Git/opencode/coordination_notes/opencode-gemini-ec2cac67/.delivering-17e5cd0d-a8ec-409c-98d4-118d435d3fa6.md",
+      "dispatchedAt": 1784398133737,
+      "state": "history_confirmed"
+    }
+  ]
+}

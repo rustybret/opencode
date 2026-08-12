@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "key": "opencode-gemini-ec2cac67:opencode-228cc625:9ab8bcfc-3652-4df0-9cfa-49f5320d1d53:b33b8b64ac8428db2683af9c81f1fa861ac40e635c1621246cf138fc081f46e4",
+      "digest": "b33b8b64ac8428db2683af9c81f1fa861ac40e635c1621246cf138fc081f46e4",
+      "fromProjectId": "opencode-gemini-ec2cac67",
+      "toProjectId": "opencode-228cc625",
+      "correlationId": "9ab8bcfc-3652-4df0-9cfa-49f5320d1d53",
+      "recordedAt": 1784398133565,
+      "ttlMs": 3600000
+    }
+  ]
+}

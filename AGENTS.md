@@ -4,11 +4,47 @@
 - The default branch in this repo is `dev`.
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
 
-## Branch Names
+## Fork Development
 
-Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`.
+This repo is a private fork of `anomalyco/opencode` using a **two-branch model**:
 
-Examples: `session-recovery`, `fix-scroll-state`, `regenerate-sdk`.
+- **`opencode-mirror`** — clean mirror of `upstream/dev`. Never commit fork changes here. Updated via `script/fork-sync.sh` (fast-forward only).
+- **`fork/local`** — the customization layer. All local development happens here.
+
+### Syncing with upstream
+
+```bash
+script/fork-sync.sh
+```
+
+Future syncs are a single command via `script/fork-sync.sh` (or `git sync-upstream`). It fetches upstream, fast-forwards `opencode-mirror`, merges into `fork/local`, auto-resolves standing exclusions in `script/fork-sync-exclusions` (removing restored workflows/docs and keeping fork deletions permanent), sweeps new upstream files matching exclusions, and pushes. If manual conflicts arise, resolve them, commit (`git commit --no-verify`), and push `fork/local`.
+
+### Standalone build
+
+```bash
+./packages/opencode/script/build.ts --single
+# Output: packages/opencode/dist/opencode-<platform>/bin/opencode
+```
+
+Run `bun typecheck` from `packages/opencode` (never `tsc` directly) before building.
+
+### Release watcher (orw)
+
+`@cortexkit/orw` runs at `~/opencode-release-watch/` via launchd (30-min poll). On each new upstream release it AI-merges `fork/local` onto the release tag using `claude-opus-4-8`, builds a native CLI (TUI/web only — desktop disabled), and auto-installs to `~/.opencode/bin/opencode`. `~/.opencode/bin/opencode` is prepended to PATH and takes precedence — `which opencode` resolves here. `/opt/homebrew/bin/opencode` holds the vanilla upstream Homebrew version as a manual fallback only.
+
+After pushing new commits to `fork/local` with no upstream release, trigger a rebuild manually through the hardened wrapper — **never** call `bunx @cortexkit/orw check` directly (that bypasses the independent smoke gate and is what shipped the broken v1.18.2 `plugin-not-defined` build):
+
+```bash
+cd ~/opencode-release-watch && run/orw-check check --force
+```
+
+The wrapper pins the ORW version, refuses to run unless `install_cli=false`, and independently verifies the built artifact (exact `--version` match + isolated `GET /agent` HTTP 200 smoke on an ephemeral port with temp XDG dirs) before ever reporting success. To re-verify the artifact already recorded in state without rebuilding, run `run/orw-check verify`.
+
+Operator runbook: `agent-harness/docs/runbooks/OpenCode-Release-Watcher.md`
+
+### Deployment policy: snapshots disabled by default
+
+OpenCode deployments of this fork must set `"snapshot": false` in their `opencode.json` by default. The snapshot feature (`packages/core/src/v1/config/config.ts` `snapshot` key, honored in `packages/opencode/src/snapshot/index.ts`) creates per-instance git-store folders under the OS temp/cache dirs — measured >1GB per instance during heavy runs, filling the boot drive. Verified fix 2026-08-09: with snapshots disabled, the full test suite ran with zero folders created. Enabling snapshot tracking is opt-in and should be a deliberate, documented choice (undo/revert history trade-off).
 
 ## Commits and PR Titles
 
@@ -140,22 +176,10 @@ const table = sqliteTable("session", {
 
 ## Testing
 
-- Avoid mocks as much as possible, you shouldn't be using globalThis.\* at all unless it's the only option.
+- Avoid mocks as much as possible
 - Test actual implementation, do not duplicate logic into tests
 - Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/opencode`.
 
 ## Type Checking
 
 - Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.
-
-## V2 Session Core
-
-- Keep durable prompt admission separate from model execution. `SessionV2.prompt(...)` admits one durable `session_input` row before scheduling advisory `SessionExecution.wake(sessionID)` unless `resume: false` requests admit-only behavior. The serialized runner promotes admitted inputs into visible user messages at safe boundaries.
-- Reusing a Session ID adopts the existing Session. Reusing a prompt message ID reconciles an exact retry only when Session, prompt, and delivery mode match; conflicting reuse fails. Historical projected prompts lazily synthesize promoted inbox records during exact retry.
-- Keep `SessionExecution` process-global and Session-ID based. Its local implementation owns the process-local Session coordinator and discovers placement through `SessionStore` plus `LocationServiceMap.get(session.location)` only when a drain starts; no layer should take a Session ID. V2 interruption targets the active process-local ownership chain for that Session; idle or missing interruption is a no-op.
-- Keep `SessionRunner`, model resolution, tool registry, permissions, and filesystem Location-scoped. Omitted `Location.workspaceID` means implicit-local placement; explicit workspace identity remains reserved for future placement semantics.
-- Preserve one explicit `llm.stream(request)` call per provider turn and reload projected history before durable continuation. Do not bridge through legacy `SessionPrompt.loop(...)` or delegate orchestration to an in-memory tool loop.
-- Keep local Session drains process-local until clustering is implemented. `SessionRunCoordinator` joins explicit same-Session resumes, coalesces prompt wakeups, and allows different Sessions to run concurrently. Advisory wakes drain eligible durable inbox rows only; post-crash continuation recovery requires a separate explicit design before it may retry provider work. A drain has no durable identity or transcript boundary.
-- Keep delivery vocabulary explicit. Prompts steer by default and promote at the next safe provider-turn boundary while the current drain requires continuation. An explicit `queue` input remains pending until the Session would otherwise become idle; promote one queued input at that boundary, then reevaluate continuation before promoting another. Promoting any new user input resets the selected agent's provider-turn allowance; a batch of steers resets it once.
-- Keep EventV2 replay owner claims separate from clustered Session execution ownership.
-- Keep the System Context algebra, registry, and built-ins in `src/system-context`; keep Context Source producers with their observed domains, and keep Session History selection plus Context Epoch persistence Session-owned.

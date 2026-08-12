@@ -1,0 +1,51 @@
+# Fork sync exclusion manifest — consumed by script/fork-sync.sh.
+#
+# Two directive kinds, one glob per line, `#` starts a comment:
+#
+#   keep-deleted: <glob>   Paths the fork permanently deletes. On every sync,
+#                          upstream modifications to these are resolved as
+#                          deletion, and ANY file matching the glob that the
+#                          merge introduces (including brand-new upstream
+#                          files) is removed from the merge result.
+#
+#   take-theirs: <glob>    Regenerable artifacts the fork does not maintain.
+#                          A both-modified conflict on these is resolved to
+#                          upstream's version.
+#
+# Keep this list explicit and reviewed. Do not widen a glob to cover a
+# path the fork actually keeps.
+
+# --- Upstream ops/workflow machinery: never restored (commit e11e21e69c).
+# --- The fork runs no GitHub-hosted jobs; CI belongs to cloudhome.
+keep-deleted: .github/CODEOWNERS
+keep-deleted: .github/TEAM_MEMBERS
+keep-deleted: .github/actions/*
+keep-deleted: .github/publish-python-sdk.yml
+keep-deleted: .github/pull_request_template.md
+keep-deleted: .github/workflows/*
+
+# --- Upstream-only documentation & locale READMEs removed by fork.
+keep-deleted: README.ar.md
+keep-deleted: README.bn.md
+keep-deleted: README.br.md
+keep-deleted: README.bs.md
+keep-deleted: README.da.md
+keep-deleted: README.de.md
+keep-deleted: README.es.md
+keep-deleted: README.fr.md
+keep-deleted: README.gr.md
+keep-deleted: README.it.md
+keep-deleted: README.ja.md
+keep-deleted: README.ko.md
+keep-deleted: README.no.md
+keep-deleted: README.pl.md
+keep-deleted: README.ru.md
+keep-deleted: README.th.md
+keep-deleted: README.tr.md
+keep-deleted: README.uk.md
+keep-deleted: README.vi.md
+keep-deleted: README.zh.md
+keep-deleted: README.zht.md
+keep-deleted: SECURITY.md
+keep-deleted: STATS.md
+keep-deleted: screenshot-uk.png

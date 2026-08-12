@@ -1,0 +1,128 @@
+{
+  "version": "1.0.0",
+  "extractedAt": "2026-08-12T04:59:08.001Z",
+  "project": {
+    "id": "opencode-228cc625",
+    "name": "opencode",
+    "worktree": "/Volumes/Topper2TB/Git/opencode"
+  },
+  "primarySession": {
+    "id": "ses_00baeccdcffeURe272XGvKdRRv",
+    "title": "[CONTEXT]: We are preparing (@plan subagent)",
+    "directory": "/Volumes/Topper2TB/Git/opencode",
+    "model": "{\"id\":\"claude-fable-5\",\"providerID\":\"anthropic\",\"variant\":\"xhigh\"}",
+    "agent": "plan",
+    "status": "running",
+    "createdAt": 1786510390051,
+    "updatedAt": 1786510718973,
+    "tokens": {
+      "inputTokens": 29,
+      "outputTokens": 17273,
+      "cacheReadTokens": 1146194,
+      "cacheWriteTokens": 101639,
+      "totalCostUsd": 0.0425
+    }
+  },
+  "subagents": [
+    {
+      "id": "ses_00baef906ffeg4vYjPvoLwlI3x",
+      "parentId": "ses_00baeccdcffeURe272XGvKdRRv",
+      "title": "Explore packages/app routing & layout primitives",
+      "model": "antigravity-gemini-3.6-flash",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-low",
+      "status": "completed",
+      "durationMs": 4250,
+      "tokens": {
+        "inputTokens": 18400,
+        "outputTokens": 1200,
+        "cacheReadTokens": 16200,
+        "cacheWriteTokens": 2200,
+        "totalCostUsd": 0.0058
+      }
+    },
+    {
+      "id": "ses_00baefd74ffeXYyf8LOg737T6A",
+      "parentId": "ses_00baeccdcffeURe272XGvKdRRv",
+      "title": "Explore packages/session-ui topology & session components",
+      "model": "antigravity-gemini-3.6-flash",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-low",
+      "status": "completed",
+      "durationMs": 3890,
+      "tokens": {
+        "inputTokens": 19100,
+        "outputTokens": 1450,
+        "cacheReadTokens": 17100,
+        "cacheWriteTokens": 2000,
+        "totalCostUsd": 0.0062
+      }
+    },
+    {
+      "id": "ses_00baeccdcffeURe272XGvKdRRv",
+      "parentId": "ses_00baeccdcffeURe272XGvKdRRv",
+      "title": "Pre-implementation Gate Execution Plan Formulation",
+      "model": "antigravity-gemini-3.6-flash",
+      "agent": "plan",
+      "category": "plan",
+      "status": "completed",
+      "durationMs": 317000,
+      "tokens": {
+        "inputTokens": 84500,
+        "outputTokens": 4800,
+        "cacheReadTokens": 76200,
+        "cacheWriteTokens": 8300,
+        "totalCostUsd": 0.0245
+      }
+    }
+  ],
+  "boulderState": {
+    "activeGoal": "Deliver Phase 2 Pre-Implementation Gates (G1-G4)",
+    "activeStep": "Author Gate G1 (UI Design Mockup)",
+    "completedSteps": 3,
+    "totalSteps": 7,
+    "percentage": 42.8,
+    "evidenceFiles": [
+      ".scratch/trellis/out/trellis_20260811T195242Z_s7_1.glb",
+      "docs/reference/ucs-frontend-phase2-feedback-specification.md",
+      "docs/reference/ucs-frontend-phase2-shared-glossary.md",
+      "script/ucs-phase2-gate-check.ts"
+    ]
+  },
+  "integrations": [
+    {
+      "id": "unity-supermcp-01",
+      "engine": "unity",
+      "name": "Unity SuperMCP Bridge",
+      "status": "connected",
+      "details": {
+        "editorVersion": "2022.3.20f1",
+        "scene": "Assets/Scenes/MainStage.unity",
+        "playmode": "stopped",
+        "compilation": "clean"
+      }
+    }
+  ],
+  "eventsSample": [
+    {
+      "type": "session.created",
+      "time": "2026-08-11T20:30:00Z",
+      "sessionId": "ses_00baeccdcffeURe272XGvKdRRv"
+    },
+    {
+      "type": "task.started",
+      "time": "2026-08-11T20:31:00Z",
+      "subagentId": "ses_00baef906ffeg4vYjPvoLwlI3x"
+    },
+    {
+      "type": "task.completed",
+      "time": "2026-08-11T20:31:04Z",
+      "subagentId": "ses_00baef906ffeg4vYjPvoLwlI3x"
+    },
+    {
+      "type": "boulder.updated",
+      "time": "2026-08-11T20:32:00Z",
+      "activeStep": "Author Gate G1 (UI Design Mockup)"
+    }
+  ]
+}

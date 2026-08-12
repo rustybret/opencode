@@ -1344,6 +1344,26 @@ export function Prompt(props: PromptProps) {
   })
   const maxHeight = createMemo(() => tuiConfig.prompt?.max_height ?? Math.max(6, Math.floor(dimensions().height / 3)))
   const moveLabelWidth = createMemo(() => Math.max(12, Math.min(44, dimensions().width - 48)))
+  const stateLabel = createMemo(() => {
+    switch (status().type) {
+      case "idle":
+        return "Idle"
+      case "busy":
+        return "Working"
+      case "retry":
+        return "Retrying"
+    }
+  })
+  const stateColor = createMemo(() => {
+    switch (status().type) {
+      case "idle":
+        return theme.textMuted
+      case "busy":
+        return theme.accent
+      case "retry":
+        return theme.error
+    }
+  })
 
   return (
     <>
@@ -1652,41 +1672,46 @@ export function Prompt(props: PromptProps) {
               )}
             </Match>
           </Switch>
-          <Show when={status().type !== "retry"}>
-            <box gap={2} flexDirection="row">
-              <Show when={editorContextLabelState() !== "none" ? editorFileLabelDisplay() : undefined}>
-                {(file) => (
-                  <text fg={editorContextLabelState() === "pending" ? theme.secondary : theme.textMuted}>{file()}</text>
-                )}
-              </Show>
-              <Switch>
-                <Match when={store.mode === "normal"}>
-                  <Switch>
-                    <Match when={usage()}>
-                      {(item) => (
-                        <text fg={theme.textMuted} wrapMode="none">
-                          {[item().context, item().cost].filter(Boolean).join(" · ")}
+          <box gap={2} flexDirection="row">
+            <text fg={stateColor()}>{stateLabel()}</text>
+            <Show when={status().type !== "retry"}>
+              <box gap={2} flexDirection="row">
+                <Show when={editorContextLabelState() !== "none" ? editorFileLabelDisplay() : undefined}>
+                  {(file) => (
+                    <text fg={editorContextLabelState() === "pending" ? theme.secondary : theme.textMuted}>
+                      {file()}
+                    </text>
+                  )}
+                </Show>
+                <Switch>
+                  <Match when={store.mode === "normal"}>
+                    <Switch>
+                      <Match when={usage()}>
+                        {(item) => (
+                          <text fg={theme.textMuted} wrapMode="none">
+                            {[item().context, item().cost].filter(Boolean).join(" · ")}
+                          </text>
+                        )}
+                      </Match>
+                      <Match when={true}>
+                        <text fg={theme.text}>
+                          {agentShortcut()} <span style={{ fg: theme.textMuted }}>agents</span>
                         </text>
-                      )}
-                    </Match>
-                    <Match when={true}>
-                      <text fg={theme.text}>
-                        {agentShortcut()} <span style={{ fg: theme.textMuted }}>agents</span>
-                      </text>
-                    </Match>
-                  </Switch>
-                  <text fg={theme.text}>
-                    {paletteShortcut()} <span style={{ fg: theme.textMuted }}>commands</span>
-                  </text>
-                </Match>
-                <Match when={store.mode === "shell"}>
-                  <text fg={theme.text}>
-                    esc <span style={{ fg: theme.textMuted }}>exit shell mode</span>
-                  </text>
-                </Match>
-              </Switch>
-            </box>
-          </Show>
+                      </Match>
+                    </Switch>
+                    <text fg={theme.text}>
+                      {paletteShortcut()} <span style={{ fg: theme.textMuted }}>commands</span>
+                    </text>
+                  </Match>
+                  <Match when={store.mode === "shell"}>
+                    <text fg={theme.text}>
+                      esc <span style={{ fg: theme.textMuted }}>exit shell mode</span>
+                    </text>
+                  </Match>
+                </Switch>
+              </box>
+            </Show>
+          </box>
         </box>
       </box>
       <Autocomplete
