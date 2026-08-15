@@ -49,3 +49,6 @@ keep-deleted: README.zht.md
 keep-deleted: SECURITY.md
 keep-deleted: STATS.md
 keep-deleted: screenshot-uk.png
+
+# --- Regenerable lockfile: take upstream version and refresh on sync
+take-theirs: bun.lock

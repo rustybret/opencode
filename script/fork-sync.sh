@@ -128,6 +128,9 @@ else
       echo "then push fork/local:  git push origin fork/local" >&2
       exit 1
     fi
+    echo "== refreshing lockfile with bun install =="
+    bun install --frozen-lockfile=false --quiet
+    git add bun.lock
     git commit --no-verify -m "merge: sync $REMOTE/$BRANCH ($(git rev-parse --short "$REMOTE/$BRANCH")) into fork/local"
   fi
 fi

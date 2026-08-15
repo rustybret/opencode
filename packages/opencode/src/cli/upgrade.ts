@@ -4,7 +4,7 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 import { Installation } from "@/installation"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { GlobalBus } from "@/bus/global"
-import { upgradeFromOrw } from "./upgrade-orw"
+import { upgradeFromArcus } from "./upgrade-arcus"
 
 export async function upgrade() {
   const config = await AppRuntime.runPromise(Config.Service.use((cfg) => cfg.getGlobal()))
@@ -41,11 +41,9 @@ export async function upgrade() {
 
   if (method === "unknown") return
 
-  // Prefer a pre-built fork binary from the orw artifact directory when available.
-  // This installs the AI-merged fork build (fork/local + curated upstream PRs) instead
-  // of re-fetching the stock upstream binary via the package manager.
-  const installedFromOrw = await upgradeFromOrw(latest)
-  await (installedFromOrw ? Promise.resolve() : Installation.upgrade(method, latest))
+  // Prefer pre-built binary from Arcus package distribution when available.
+  const installedFromArcus = await upgradeFromArcus(latest)
+  await (installedFromArcus ? Promise.resolve() : Installation.upgrade(method, latest))
     .then(() =>
       GlobalBus.emit("event", {
         directory: "global",
