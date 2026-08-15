@@ -38,3 +38,4 @@ tsconfig.tsbuildinfo
 coordination_notes/.rate-limits.json
 coordination_notes/.pending.json
 coordination_notes/.digests.json
+/.ucs
