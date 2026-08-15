@@ -20,6 +20,7 @@
     "random": "echo 'Random script'",
     "sso": "aws sso login --sso-session=opencode --no-browser",
     "translate:app": "bun run script/translate-app.ts",
+    "test:upgrade": "bun test --cwd packages/opencode test/cli/upgrade-arcus.test.ts",
     "trigger:buildkit": "bun run script/trigger-buildkit.ts",
     "trigger:buildkit:release": "bun run script/trigger-buildkit.ts --release",
     "test": "echo 'do not run tests from root' && exit 1"
