@@ -51,6 +51,7 @@ fi
 # --- parse the exclusion manifest ---------------------------------------------
 KEEP_DELETED=()
 TAKE_THEIRS=()
+REGENERATE=()
 while IFS= read -r line || [[ -n "$line" ]]; do
   line="${line%%#*}"                          # strip comments
   line="${line#"${line%%[![:space:]]*}"}"     # trim leading whitespace
@@ -58,6 +59,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   case "$line" in
     keep-deleted:*) KEEP_DELETED+=("${line#keep-deleted:}") ;;
     take-theirs:*)  TAKE_THEIRS+=("${line#take-theirs:}") ;;
+    regenerate:*)   REGENERATE+=("${line#regenerate:}") ;;
     *) echo "warning: unrecognized manifest line: $line" >&2 ;;
   esac
 done < "$EXCLUSIONS"
@@ -73,6 +75,14 @@ matches_keep_deleted() {
 matches_take_theirs() {
   local p="$1" g
   for g in "${TAKE_THEIRS[@]}"; do
+    g="${g#"${g%%[![:space:]]*}"}"
+    [[ "$p" == $g ]] && return 0
+  done
+  return 1
+}
+matches_regenerate() {
+  local p="$1" g
+  for g in "${REGENERATE[@]}"; do
     g="${g#"${g%%[![:space:]]*}"}"
     [[ "$p" == $g ]] && return 0
   done
@@ -107,6 +117,7 @@ else
   echo "fork/local has diverged: merging with a merge commit"
   if ! git merge --no-edit "$MIRROR_BRANCH"; then
     echo "== auto-resolving known conflict classes =="
+    HAD_REGENERATE=0
     for f in $(git diff --name-only --diff-filter=U); do
       if ! git cat-file -e ":2:$f" 2>/dev/null; then
         # deleted by us (no stage-2 blob), modified by them
@@ -114,6 +125,10 @@ else
           git rm -f --quiet "$f"
           echo "  removed (keep-deleted): $f"
         fi
+      elif matches_regenerate "$f"; then
+        git checkout --theirs --quiet -- "$f"
+        echo "  took theirs for regeneration: $f"
+        HAD_REGENERATE=1
       elif matches_take_theirs "$f"; then
         # checkout --theirs on an unmerged path stages the result itself
         git checkout --theirs --quiet -- "$f"
@@ -128,10 +143,22 @@ else
       echo "then push fork/local:  git push origin fork/local" >&2
       exit 1
     fi
-    echo "== refreshing lockfile with bun install =="
-    bun install --frozen-lockfile=false --quiet
-    git add bun.lock
+    if [[ "$HAD_REGENERATE" == "1" ]]; then
+      echo "== regenerating lockfile with bun install =="
+      bun install --frozen-lockfile=false --quiet
+      git add bun.lock
+    fi
     git commit --no-verify -m "merge: sync $REMOTE/$BRANCH ($(git rev-parse --short "$REMOTE/$BRANCH")) into fork/local"
+  else
+    # Clean textual merge: if bun.lock was modified by the merge, ensure it stays consistent with fork package.json
+    if git diff --name-only "$PRE_MERGE_HEAD" HEAD | grep -q "^bun\.lock$"; then
+      echo "== reconciling lockfile on clean merge =="
+      bun install --frozen-lockfile=false --quiet
+      if [[ -n "$(git status --porcelain bun.lock)" ]]; then
+        git add bun.lock
+        git commit --amend --no-verify --no-edit
+      fi
+    fi
   fi
 fi
 

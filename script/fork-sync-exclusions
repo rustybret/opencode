@@ -1,6 +1,6 @@
 # Fork sync exclusion manifest — consumed by script/fork-sync.sh.
 #
-# Two directive kinds, one glob per line, `#` starts a comment:
+# Three directive kinds, one glob per line, `#` starts a comment:
 #
 #   keep-deleted: <glob>   Paths the fork permanently deletes. On every sync,
 #                          upstream modifications to these are resolved as
@@ -11,6 +11,11 @@
 #   take-theirs: <glob>    Regenerable artifacts the fork does not maintain.
 #                          A both-modified conflict on these is resolved to
 #                          upstream's version.
+#
+#   regenerate: <glob>     Regenerable files requiring post-checkout rebuild
+#                          (e.g., bun.lock). Checkout upstream version, run
+#                          bun install to reconcile with fork package.json deltas,
+#                          and stage the resulting file into the merge commit.
 #
 # Keep this list explicit and reviewed. Do not widen a glob to cover a
 # path the fork actually keeps.
@@ -50,5 +55,5 @@ keep-deleted: SECURITY.md
 keep-deleted: STATS.md
 keep-deleted: screenshot-uk.png
 
-# --- Regenerable lockfile: take upstream version and refresh on sync
-take-theirs: bun.lock
+# --- Regenerable lockfile: checkout upstream version and regenerate with bun install
+regenerate: bun.lock
