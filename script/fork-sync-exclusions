@@ -12,10 +12,15 @@
 #                          A both-modified conflict on these is resolved to
 #                          upstream's version.
 #
-#   regenerate: <glob>     Regenerable files requiring post-checkout rebuild
-#                          (e.g., bun.lock). Checkout upstream version, run
-#                          bun install to reconcile with fork package.json deltas,
-#                          and stage the resulting file into the merge commit.
+#   regenerate: <glob>     Regenerable files requiring post-checkout rebuild.
+#                          Checkout upstream's version, run the rebuild command
+#                          for that file's ecosystem to reconcile it with the
+#                          fork's manifest deltas, then stage the result INTO the
+#                          merge commit (never as a follow-up commit).
+#                          Dispatch is keyed on the matched file's basename, not
+#                          the glob: bun.lock -> `bun install`, Cargo.lock ->
+#                          `cargo metadata`. This repo is Bun-only; the basename
+#                          rule keeps the manifest spec shared with polyglot forks.
 #
 # Keep this list explicit and reviewed. Do not widen a glob to cover a
 # path the fork actually keeps.
