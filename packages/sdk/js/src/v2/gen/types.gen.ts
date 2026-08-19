@@ -93,6 +93,11 @@ export type Event =
   | EventWorktreeFailed
   | EventServerConnected
   | EventGlobalDisposed
+  | EventExternalAppStateChanged
+  | EventExternalAppCapabilitiesChanged
+  | EventExternalAppBlockageChanged
+  | EventExternalAppCheckpointResult
+  | EventExternalAppProgress
   | EventServerInstanceDisposed
 
 export type QuestionReplied = {
@@ -1600,6 +1605,46 @@ export type GlobalEvent = {
           [key: string]: unknown
         }
       }
+    | {
+        id: string
+        type: "external-app.state-changed"
+        properties: {
+          appId: string
+          snapshot: ExternalAppEventSnapshot
+        }
+      }
+    | {
+        id: string
+        type: "external-app.capabilities-changed"
+        properties: {
+          appId: string
+          capabilities: ExternalAppEventCapabilities
+        }
+      }
+    | {
+        id: string
+        type: "external-app.blockage-changed"
+        properties: {
+          appId: string
+          blockage: ExternalAppEventBlockage
+        }
+      }
+    | {
+        id: string
+        type: "external-app.checkpoint-result"
+        properties: {
+          appId: string
+          result: ExternalAppEventCheckpointOutcome
+        }
+      }
+    | {
+        id: string
+        type: "external-app.progress"
+        properties: {
+          appId: string
+          progress: ExternalAppEventProgressTick
+        }
+      }
     | EventServerInstanceDisposed
     | SyncEventSessionCreated
     | SyncEventSessionUpdated
@@ -1636,6 +1681,10 @@ export type GlobalEvent = {
     | SyncEventSessionNextRevertStaged
     | SyncEventSessionNextRevertCleared
     | SyncEventSessionNextRevertCommitted
+    | SyncEventExternalAppStateChanged
+    | SyncEventExternalAppCapabilitiesChanged
+    | SyncEventExternalAppBlockageChanged
+    | SyncEventExternalAppCheckpointResult
 }
 
 /**
@@ -2652,6 +2701,29 @@ export type EventTuiSessionSelect = {
   }
 }
 
+export type ExternalAppUnavailableError = {
+  name: "ExternalAppUnavailableError"
+  data: {
+    message: string
+    reason?: string
+  }
+}
+
+export type ExternalAppGatewayTimeoutError = {
+  name: "ExternalAppGatewayTimeoutError"
+  data: {
+    message: string
+  }
+}
+
+export type ExternalAppBlockedError = {
+  name: "ExternalAppBlockedError"
+  data: {
+    message: string
+    reason?: string
+  }
+}
+
 export type Workspace = {
   id: string
   type: string
@@ -2941,6 +3013,11 @@ export type V2Event =
   | WorktreeFailed
   | ServerConnected
   | GlobalDisposed
+  | ExternalAppStateChanged
+  | ExternalAppCapabilitiesChanged
+  | ExternalAppBlockageChanged
+  | ExternalAppCheckpointResult
+  | ExternalAppProgress
 
 export type V2EventStream = string
 
@@ -3181,6 +3258,62 @@ export type ProjectTime = {
   created: number
   updated: number
   initialized?: number
+}
+
+export type ExternalAppEventBlockage = {
+  reason:
+    | "modal"
+    | "safe-mode"
+    | "compile-errors-require-human"
+    | "editor-focus-required"
+    | "instance-selection-required"
+  detail?: string
+}
+
+export type ExternalAppEventSnapshot = {
+  appId: string
+  state: "disconnected" | "connecting" | "connected" | "blocked-on-human" | "busy-streaming" | "error"
+  health: "healthy" | "throttled" | "stalled" | "unreachable"
+  activeMode: "edit" | "play" | "unknown"
+  focused?: boolean
+  backgroundMode?: boolean
+  lastHeartbeatAgeMs?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  modalCount?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  projectPath?: string
+  scenePath?: string
+  blockage?: ExternalAppEventBlockage
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+}
+
+export type ExternalAppEventCapabilities = {
+  version: string
+  actions: Array<{
+    id: string
+    name: string
+    domain: string
+  }>
+  domainTags: Array<string>
+  checkpointSupported: boolean
+}
+
+export type ExternalAppEventCheckpointOutcome =
+  | {
+      _tag: "Created"
+      checkpointId: string
+      label: string
+      createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    }
+  | {
+      _tag: "Unsupported"
+      reason: string
+    }
+
+export type ExternalAppEventProgressTick = {
+  sequence: number
+  operationId: string
+  progress?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  message: string
+  terminal: boolean
 }
 
 export type EventServerInstanceDisposed = {
@@ -3819,6 +3952,66 @@ export type SyncEventSessionNextRevertCommitted = {
       timestamp: number
       sessionID: string
       messageID: string
+    }
+  }
+}
+
+export type SyncEventExternalAppStateChanged = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "external-app.state-changed.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      appId: string
+      snapshot: ExternalAppEventSnapshot
+    }
+  }
+}
+
+export type SyncEventExternalAppCapabilitiesChanged = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "external-app.capabilities-changed.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      appId: string
+      capabilities: ExternalAppEventCapabilities
+    }
+  }
+}
+
+export type SyncEventExternalAppBlockageChanged = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "external-app.blockage-changed.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      appId: string
+      blockage: ExternalAppEventBlockage
+    }
+  }
+}
+
+export type SyncEventExternalAppCheckpointResult = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "external-app.checkpoint-result.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      appId: string
+      result: ExternalAppEventCheckpointOutcome
     }
   }
 }
@@ -6105,6 +6298,131 @@ export type GlobalDisposed = {
   }
 }
 
+export type ExternalAppEventSnapshot1 = {
+  appId: string
+  state: "disconnected" | "connecting" | "connected" | "blocked-on-human" | "busy-streaming" | "error"
+  health: "healthy" | "throttled" | "stalled" | "unreachable"
+  activeMode: "edit" | "play" | "unknown"
+  focused?: boolean
+  backgroundMode?: boolean
+  lastHeartbeatAgeMs?: number | "NaN" | "Infinity" | "-Infinity"
+  modalCount?: number | "NaN" | "Infinity" | "-Infinity"
+  projectPath?: string
+  scenePath?: string
+  blockage?: ExternalAppEventBlockage
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity"
+}
+
+export type ExternalAppStateChanged = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "external-app.state-changed"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    appId: string
+    snapshot: ExternalAppEventSnapshot1
+  }
+}
+
+export type ExternalAppCapabilitiesChanged = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "external-app.capabilities-changed"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    appId: string
+    capabilities: ExternalAppEventCapabilities
+  }
+}
+
+export type ExternalAppBlockageChanged = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "external-app.blockage-changed"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    appId: string
+    blockage: ExternalAppEventBlockage
+  }
+}
+
+export type ExternalAppEventCheckpointOutcome1 =
+  | {
+      _tag: "Created"
+      checkpointId: string
+      label: string
+      createdAt: number | "NaN" | "Infinity" | "-Infinity"
+    }
+  | {
+      _tag: "Unsupported"
+      reason: string
+    }
+
+export type ExternalAppCheckpointResult = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "external-app.checkpoint-result"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    appId: string
+    result: ExternalAppEventCheckpointOutcome1
+  }
+}
+
+export type ExternalAppEventProgressTick1 = {
+  sequence: number
+  operationId: string
+  progress?: number | "NaN" | "Infinity" | "-Infinity"
+  message: string
+  terminal: boolean
+}
+
+export type ExternalAppProgress = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "external-app.progress"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    appId: string
+    progress: ExternalAppEventProgressTick1
+  }
+}
+
 export type QuestionV2Request = {
   id: string
   sessionID: string
@@ -7049,6 +7367,74 @@ export type EventGlobalDisposed = {
   type: "global.disposed"
   properties: {
     [key: string]: unknown
+  }
+}
+
+export type ExternalAppEventSnapshot2 = {
+  appId: string
+  state: "disconnected" | "connecting" | "connected" | "blocked-on-human" | "busy-streaming" | "error"
+  health: "healthy" | "throttled" | "stalled" | "unreachable"
+  activeMode: "edit" | "play" | "unknown"
+  focused?: boolean
+  backgroundMode?: boolean
+  lastHeartbeatAgeMs?: number | "NaN" | "Infinity" | "-Infinity"
+  modalCount?: number | "NaN" | "Infinity" | "-Infinity"
+  projectPath?: string
+  scenePath?: string
+  blockage?: ExternalAppEventBlockage
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity"
+}
+
+export type EventExternalAppStateChanged = {
+  id: string
+  type: "external-app.state-changed"
+  properties: {
+    appId: string
+    snapshot: ExternalAppEventSnapshot2
+  }
+}
+
+export type EventExternalAppCapabilitiesChanged = {
+  id: string
+  type: "external-app.capabilities-changed"
+  properties: {
+    appId: string
+    capabilities: ExternalAppEventCapabilities
+  }
+}
+
+export type EventExternalAppBlockageChanged = {
+  id: string
+  type: "external-app.blockage-changed"
+  properties: {
+    appId: string
+    blockage: ExternalAppEventBlockage
+  }
+}
+
+export type EventExternalAppCheckpointResult = {
+  id: string
+  type: "external-app.checkpoint-result"
+  properties: {
+    appId: string
+    result: ExternalAppEventCheckpointOutcome1
+  }
+}
+
+export type ExternalAppEventProgressTick2 = {
+  sequence: number
+  operationId: string
+  progress?: number | "NaN" | "Infinity" | "-Infinity"
+  message: string
+  terminal: boolean
+}
+
+export type EventExternalAppProgress = {
+  id: string
+  type: "external-app.progress"
+  properties: {
+    appId: string
+    progress: ExternalAppEventProgressTick2
   }
 }
 
@@ -11284,6 +11670,285 @@ export type UcsEventsResponses = {
 }
 
 export type UcsEventsResponse = UcsEventsResponses[keyof UcsEventsResponses]
+
+export type UcsExternalAppsData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/ucs/external-apps"
+}
+
+export type UcsExternalAppsErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type UcsExternalAppsError = UcsExternalAppsErrors[keyof UcsExternalAppsErrors]
+
+export type UcsExternalAppsResponses = {
+  /**
+   * Registered external applications with connection state and health.
+   */
+  200: {
+    apps: Array<{
+      appId: string
+      name: string
+      state: "disconnected" | "connecting" | "connected" | "blocked-on-human" | "busy-streaming" | "error"
+      health: "healthy" | "throttled" | "stalled" | "unreachable"
+    }>
+  }
+}
+
+export type UcsExternalAppsResponse = UcsExternalAppsResponses[keyof UcsExternalAppsResponses]
+
+export type UcsExternalAppsConnectData = {
+  body?: {
+    projectPath?: string
+  }
+  path: {
+    appId: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/ucs/external-apps/{appId}/connect"
+}
+
+export type UcsExternalAppsConnectErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
+   * ExternalAppBlockedError
+   */
+  409: ExternalAppBlockedError
+  /**
+   * ExternalAppUnavailableError
+   */
+  502: ExternalAppUnavailableError
+  /**
+   * ExternalAppGatewayTimeoutError
+   */
+  504: ExternalAppGatewayTimeoutError
+}
+
+export type UcsExternalAppsConnectError = UcsExternalAppsConnectErrors[keyof UcsExternalAppsConnectErrors]
+
+export type UcsExternalAppsConnectResponses = {
+  /**
+   * Snapshot captured immediately after the handshake.
+   */
+  200: {
+    appId: string
+    state: "disconnected" | "connecting" | "connected" | "blocked-on-human" | "busy-streaming" | "error"
+    health: "healthy" | "throttled" | "stalled" | "unreachable"
+    activeMode: "edit" | "play" | "unknown"
+    focused?: boolean
+    backgroundMode?: boolean
+    lastHeartbeatAgeMs?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    modalCount?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    projectPath?: string
+    scenePath?: string
+    blockage?: {
+      reason:
+        | "modal"
+        | "safe-mode"
+        | "compile-errors-require-human"
+        | "editor-focus-required"
+        | "instance-selection-required"
+      detail?: string
+    }
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type UcsExternalAppsConnectResponse = UcsExternalAppsConnectResponses[keyof UcsExternalAppsConnectResponses]
+
+export type UcsExternalAppsStatusData = {
+  body?: never
+  path: {
+    appId: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/ucs/external-apps/{appId}/status"
+}
+
+export type UcsExternalAppsStatusErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
+   * ExternalAppUnavailableError
+   */
+  502: ExternalAppUnavailableError
+  /**
+   * ExternalAppGatewayTimeoutError
+   */
+  504: ExternalAppGatewayTimeoutError
+}
+
+export type UcsExternalAppsStatusError = UcsExternalAppsStatusErrors[keyof UcsExternalAppsStatusErrors]
+
+export type UcsExternalAppsStatusResponses = {
+  /**
+   * Current state, health, active mode, context, and blockage.
+   */
+  200: {
+    appId: string
+    state: "disconnected" | "connecting" | "connected" | "blocked-on-human" | "busy-streaming" | "error"
+    health: "healthy" | "throttled" | "stalled" | "unreachable"
+    activeMode: "edit" | "play" | "unknown"
+    focused?: boolean
+    backgroundMode?: boolean
+    lastHeartbeatAgeMs?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    modalCount?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    projectPath?: string
+    scenePath?: string
+    blockage?: {
+      reason:
+        | "modal"
+        | "safe-mode"
+        | "compile-errors-require-human"
+        | "editor-focus-required"
+        | "instance-selection-required"
+      detail?: string
+    }
+    updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }
+}
+
+export type UcsExternalAppsStatusResponse = UcsExternalAppsStatusResponses[keyof UcsExternalAppsStatusResponses]
+
+export type UcsExternalAppsCapabilitiesData = {
+  body?: never
+  path: {
+    appId: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/ucs/external-apps/{appId}/capabilities"
+}
+
+export type UcsExternalAppsCapabilitiesErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
+   * ExternalAppUnavailableError
+   */
+  502: ExternalAppUnavailableError
+  /**
+   * ExternalAppGatewayTimeoutError
+   */
+  504: ExternalAppGatewayTimeoutError
+}
+
+export type UcsExternalAppsCapabilitiesError =
+  UcsExternalAppsCapabilitiesErrors[keyof UcsExternalAppsCapabilitiesErrors]
+
+export type UcsExternalAppsCapabilitiesResponses = {
+  /**
+   * Advertised actions, domain tags, and native checkpoint support.
+   */
+  200: {
+    version: string
+    actions: Array<{
+      id: string
+      name: string
+      domain: string
+    }>
+    domainTags: Array<string>
+    checkpointSupported: boolean
+  }
+}
+
+export type UcsExternalAppsCapabilitiesResponse =
+  UcsExternalAppsCapabilitiesResponses[keyof UcsExternalAppsCapabilitiesResponses]
+
+export type UcsExternalAppsCheckpointData = {
+  body?: {
+    label: string
+  }
+  path: {
+    appId: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/ucs/external-apps/{appId}/checkpoints"
+}
+
+export type UcsExternalAppsCheckpointErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+  /**
+   * ExternalAppBlockedError
+   */
+  409: ExternalAppBlockedError
+  /**
+   * ExternalAppUnavailableError
+   */
+  502: ExternalAppUnavailableError
+  /**
+   * ExternalAppGatewayTimeoutError
+   */
+  504: ExternalAppGatewayTimeoutError
+}
+
+export type UcsExternalAppsCheckpointError = UcsExternalAppsCheckpointErrors[keyof UcsExternalAppsCheckpointErrors]
+
+export type UcsExternalAppsCheckpointResponses = {
+  /**
+   * Checkpoint created, or reported as unsupported.
+   */
+  200:
+    | {
+        _tag: "Created"
+        checkpointId: string
+        label: string
+        createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+      }
+    | {
+        _tag: "Unsupported"
+        reason: string
+      }
+}
+
+export type UcsExternalAppsCheckpointResponse =
+  UcsExternalAppsCheckpointResponses[keyof UcsExternalAppsCheckpointResponses]
 
 export type ExperimentalWorkspaceAdapterListData = {
   body?: never

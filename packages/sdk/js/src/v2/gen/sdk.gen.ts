@@ -267,6 +267,16 @@ import type {
   UcsCapabilitiesResponses,
   UcsEventsErrors,
   UcsEventsResponses,
+  UcsExternalAppsCapabilitiesErrors,
+  UcsExternalAppsCapabilitiesResponses,
+  UcsExternalAppsCheckpointErrors,
+  UcsExternalAppsCheckpointResponses,
+  UcsExternalAppsConnectErrors,
+  UcsExternalAppsConnectResponses,
+  UcsExternalAppsErrors,
+  UcsExternalAppsResponses,
+  UcsExternalAppsStatusErrors,
+  UcsExternalAppsStatusResponses,
   UcsProjectsErrors,
   UcsProjectsResponses,
   UcsSessionsErrors,
@@ -5033,6 +5043,166 @@ export class Tui extends HeyApiClient {
   }
 }
 
+export class ExternalApps extends HeyApiClient {
+  /**
+   * Connect an external application
+   *
+   * Run the bridge handshake for a registered external application and return the resulting snapshot. Conflicts when the app is blocked on a human or when the requested project path does not uniquely select one running instance.
+   */
+  public connect<ThrowOnError extends boolean = false>(
+    parameters: {
+      appId: string
+      directory?: string
+      workspace?: string
+      projectPath?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "appId" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "projectPath" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      UcsExternalAppsConnectResponses,
+      UcsExternalAppsConnectErrors,
+      ThrowOnError
+    >({
+      url: "/ucs/external-apps/{appId}/connect",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * External application status
+   *
+   * Current snapshot for one external application. A blocked app answers 200 with its blockage attached — discovering the blockage is the point of this endpoint, so it is never a 409.
+   */
+  public status<ThrowOnError extends boolean = false>(
+    parameters: {
+      appId: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "appId" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      UcsExternalAppsStatusResponses,
+      UcsExternalAppsStatusErrors,
+      ThrowOnError
+    >({
+      url: "/ucs/external-apps/{appId}/status",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * External application capabilities
+   *
+   * Actions the bridge advertises for one external application, its domain tags, and whether it supports native restore points.
+   */
+  public capabilities<ThrowOnError extends boolean = false>(
+    parameters: {
+      appId: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "appId" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      UcsExternalAppsCapabilitiesResponses,
+      UcsExternalAppsCapabilitiesErrors,
+      ThrowOnError
+    >({
+      url: "/ucs/external-apps/{appId}/capabilities",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Create an external application checkpoint
+   *
+   * Request a native restore point from an external application. An app with no native restore-point support answers 200 with the Unsupported result rather than an error; no substitute checkpoint is ever taken on its behalf.
+   */
+  public checkpoint<ThrowOnError extends boolean = false>(
+    parameters: {
+      appId: string
+      directory?: string
+      workspace?: string
+      label?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "appId" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "label" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      UcsExternalAppsCheckpointResponses,
+      UcsExternalAppsCheckpointErrors,
+      ThrowOnError
+    >({
+      url: "/ucs/external-apps/{appId}/checkpoints",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Ucs extends HeyApiClient {
   /**
    * UCS capability manifest
@@ -5200,6 +5370,41 @@ export class Ucs extends HeyApiClient {
       ...options,
       ...params,
     })
+  }
+
+  /**
+   * External application list
+   *
+   * Registered external creative applications visible from the routed location, with each app's connection state and health.
+   */
+  public externalApps<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<UcsExternalAppsResponses, UcsExternalAppsErrors, ThrowOnError>({
+      url: "/ucs/external-apps",
+      ...options,
+      ...params,
+    })
+  }
+
+  private _externalApps?: ExternalApps
+  get externalApps2(): ExternalApps {
+    return (this._externalApps ??= new ExternalApps({ client: this.client }))
   }
 }
 
