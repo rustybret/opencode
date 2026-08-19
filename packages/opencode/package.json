@@ -110,6 +110,7 @@
     "@standard-schema/spec": "1.0.0",
     "@types/ws": "8.18.1",
     "@ucs/contracts": "workspace:*",
+    "@ucs/external-app-unity": "workspace:*",
     "@zip.js/zip.js": "2.7.62",
     "ai": "catalog:",
     "ai-gateway-provider": "3.2.0",

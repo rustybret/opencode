@@ -502,6 +502,19 @@
         "vite": "catalog:",
       },
     },
+    "packages/external-app-unity": {
+      "name": "@ucs/external-app-unity",
+      "version": "0.1.0",
+      "dependencies": {
+        "@modelcontextprotocol/sdk": "1.29.0",
+        "@ucs/contracts": "workspace:*",
+        "effect": "catalog:",
+      },
+      "devDependencies": {
+        "@tsconfig/bun": "catalog:",
+        "@types/bun": "catalog:",
+      },
+    },
     "packages/function": {
       "name": "@opencode-ai/function",
       "version": "1.18.18",
@@ -633,6 +646,7 @@
         "@standard-schema/spec": "1.0.0",
         "@types/ws": "8.18.1",
         "@ucs/contracts": "workspace:*",
+        "@ucs/external-app-unity": "workspace:*",
         "@zip.js/zip.js": "2.7.62",
         "ai": "catalog:",
         "ai-gateway-provider": "3.2.0",
@@ -3006,6 +3020,8 @@
     "@typespec/ts-http-runtime": ["@typespec/ts-http-runtime@0.3.5", "", { "dependencies": { "http-proxy-agent": "^7.0.0", "https-proxy-agent": "^7.0.0", "tslib": "^2.6.2" } }, "sha512-yURCknZhvywvQItHMMmFSo+fq5arCUIyz/CVk7jD89MSai7dkaX8ufjCWp3NttLojoTVbcE72ri+be/TnEbMHw=="],
 
     "@ucs/contracts": ["@ucs/contracts@workspace:packages/contracts"],
+
+    "@ucs/external-app-unity": ["@ucs/external-app-unity@workspace:packages/external-app-unity"],
 
     "@ungap/structured-clone": ["@ungap/structured-clone@1.3.1", "", {}, "sha512-mUFwbeTqrVgDQxFveS+df2yfap6iuP20NAKAsBt5jDEoOTDew+zwLAOilHCeQJOVSvmgCX4ogqIrA0mnyr08yQ=="],
 

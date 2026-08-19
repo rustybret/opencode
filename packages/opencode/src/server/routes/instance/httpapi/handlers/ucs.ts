@@ -7,7 +7,15 @@ import {
   UcsTopology,
   UcsTopologyEntry,
 } from "@ucs/contracts"
+import type {
+  UcsExternalAppCheckpointRequest,
+  UcsExternalAppConnectRequest,
+  UcsExternalAppListResponse,
+} from "@ucs/contracts"
+import type { UcsExternalAppFailure } from "@ucs/contracts/external-app"
 import { listAdapters } from "@/control-plane/adapters"
+import { ExternalAppEvents } from "@/control-plane/external-app/events"
+import { ExternalApp } from "@/control-plane/external-app/service"
 import { Workspace } from "@/control-plane/workspace"
 import * as InstanceState from "@/effect/instance-state"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -16,12 +24,19 @@ import { SessionStatus } from "@/session/status"
 import { EventV2 } from "@opencode-ai/core/event"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
-import { Effect, Queue } from "effect"
+import { Effect, Option, Queue } from "effect"
 import * as Stream from "effect/Stream"
 import { HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import * as Sse from "effect/unstable/encoding/Sse"
-import { UcsSessionsListQuery, UcsSessionList } from "../groups/ucs"
+import {
+  ExternalAppBlockedError,
+  ExternalAppGatewayTimeoutError,
+  ExternalAppUnavailableError,
+  UcsSessionsListQuery,
+  UcsSessionList,
+} from "../groups/ucs"
+import { notFound } from "../errors"
 import { InstanceHttpApi } from "../api"
 
 function sessionEntry(info: Session.Info, status: string): UcsTopologyEntry {
@@ -161,6 +176,15 @@ export const ucsHandlers = HttpApiBuilder.group(InstanceHttpApi, "ucs", (handler
     const events = yield* EventV2Bridge.Service
     const workspace = yield* Workspace.Service
     const fs = yield* FSUtil.Service
+    const externalApp = yield* ExternalApp.Service
+    const externalAppEvents = yield* ExternalAppEvents.Service
+
+    // `ExternalApp.Service` is a server-wide registry, but `external-app.state-changed`
+    // and `external-app.blockage-changed` are only deliverable when they carry the
+    // routed location `/ucs/events` filters on. Attaching per directory - once,
+    // cached, released when the instance is disposed - is what supplies it, and
+    // keeps two SSE clients in the same directory from publishing each event twice.
+    const externalAppProjection = yield* InstanceState.make(() => externalAppEvents.attachRegistered())
 
     const capabilities = Effect.fn("UcsHttpApi.capabilities")(function* () {
       return {
@@ -173,6 +197,7 @@ export const ucsHandlers = HttpApiBuilder.group(InstanceHttpApi, "ucs", (handler
           { id: "event-stream" as const, status: "supported" as const, version: "1" },
           { id: "multi-session" as const, status: "supported" as const, version: "1" },
           { id: "boulder-state" as const, status: "beta" as const, version: "1" },
+          { id: "external-app" as const, status: "supported" as const, version: "1" },
         ],
         updatedAt: Date.now(),
       }
@@ -246,7 +271,91 @@ export const ucsHandlers = HttpApiBuilder.group(InstanceHttpApi, "ucs", (handler
     })
 
     const subscribeEvents = Effect.fn("UcsHttpApi.events")(function* () {
+      yield* InstanceState.get(externalAppProjection)
       return yield* eventResponse(events)
+    })
+
+    /** Every `:appId` route starts here: an unregistered app is a 404, never a bridge fault. */
+    const registration = Effect.fn("UcsHttpApi.externalApp")(function* (appId: string) {
+      const found = yield* externalApp.get(appId)
+      if (found === undefined) return yield* notFound(`External app not found: ${appId}`)
+      return found
+    })
+
+    const externalAppsList = Effect.fn("UcsHttpApi.externalAppsList")(function* () {
+      const registrations = yield* externalApp.list()
+      return {
+        apps: registrations.map((entry) => ({
+          appId: entry.adapter.appId,
+          name: entry.adapter.name,
+          // No snapshot means the supervisor has not completed a probe yet, so the
+          // only honest read is "not connected, not known to be reachable". Hiding
+          // the row instead would make a stopped Unity look like a host that has
+          // no Unity support at all.
+          state: entry.snapshot?.state ?? "disconnected",
+          health: entry.snapshot?.health ?? "unreachable",
+        })),
+      } satisfies UcsExternalAppListResponse
+    })
+
+    const externalAppConnect = Effect.fn("UcsHttpApi.externalAppConnect")(function* (ctx: {
+      params: { appId: string }
+      payload: UcsExternalAppConnectRequest
+    }) {
+      const entry = yield* registration(ctx.params.appId)
+      const snapshot = yield* entry.adapter.connect(ctx.payload).pipe(Effect.catch(writeFailure))
+      // The handshake landed, but the app still owes a human an answer. This route
+      // calls that a conflict; the blocked snapshot itself stays readable on
+      // `GET .../status`, which is the endpoint built to report blockage (D3.3-b).
+      if (snapshot.blockage)
+        return yield* new ExternalAppBlockedError({
+          name: "ExternalAppBlockedError",
+          data: {
+            message: `External app is blocked on a human: ${ctx.params.appId}`,
+            reason: snapshot.blockage.reason,
+          },
+        })
+      return snapshot
+    })
+
+    const externalAppStatus = Effect.fn("UcsHttpApi.externalAppStatus")(function* (ctx: {
+      params: { appId: string }
+    }) {
+      const entry = yield* registration(ctx.params.appId)
+      return yield* entry.adapter.status().pipe(Effect.catch(readFailure))
+    })
+
+    const externalAppCapabilities = Effect.fn("UcsHttpApi.externalAppCapabilities")(function* (ctx: {
+      params: { appId: string }
+    }) {
+      const entry = yield* registration(ctx.params.appId)
+      const capabilities = yield* entry.adapter.capabilities().pipe(Effect.catch(readFailure))
+      yield* externalAppEvents.capabilitiesChanged(ctx.params.appId, capabilities)
+      return capabilities
+    })
+
+    const externalAppCheckpoint = Effect.fn("UcsHttpApi.externalAppCheckpoint")(function* (ctx: {
+      params: { appId: string }
+      payload: UcsExternalAppCheckpointRequest
+    }) {
+      const entry = yield* registration(ctx.params.appId)
+      // Read the blockage fresh rather than trusting the retained snapshot: a
+      // restore point taken while a modal is open would capture a state nobody
+      // agreed to, and the retained copy can be up to one heartbeat stale.
+      const blockage = yield* entry.adapter.blockedOnHuman().pipe(Effect.catch(writeFailure))
+      if (Option.isSome(blockage))
+        return yield* new ExternalAppBlockedError({
+          name: "ExternalAppBlockedError",
+          data: {
+            message: `External app is blocked on a human: ${ctx.params.appId}`,
+            reason: blockage.value.reason,
+          },
+        })
+      // `Unsupported` is a 200 carrying data, never an error: no native restore
+      // point means no substitute is ever taken on the app's behalf (D3.3-a).
+      const result = yield* entry.adapter.checkpoint(ctx.payload.label).pipe(Effect.catch(writeFailure))
+      yield* externalAppEvents.checkpointResult(ctx.params.appId, result)
+      return result
     })
 
     return handlers
@@ -256,5 +365,57 @@ export const ucsHandlers = HttpApiBuilder.group(InstanceHttpApi, "ucs", (handler
       .handle("work", work)
       .handle("sessions", sessions)
       .handleRaw("events", subscribeEvents)
+      .handle("externalAppsList", externalAppsList)
+      .handle("externalAppConnect", externalAppConnect)
+      .handle("externalAppStatus", externalAppStatus)
+      .handle("externalAppCapabilities", externalAppCapabilities)
+      .handle("externalAppCheckpoint", externalAppCheckpoint)
   }),
 )
+
+/**
+ * Adapter-tier failure to HTTP status, for the routes that declare no 409.
+ *
+ * `UcsExternalAppInstanceAmbiguityError` is reachable only from `connect`, but it
+ * is a member of `UcsExternalAppFailure`, so it must land somewhere here: 502 with
+ * its reason preserved, rather than a 409 the read routes never declared (D3.3-b).
+ */
+function readFailure(
+  failure: UcsExternalAppFailure,
+  // Annotated because `Effect.catch` narrows to the first branch's error otherwise.
+): Effect.Effect<never, ExternalAppUnavailableError | ExternalAppGatewayTimeoutError> {
+  if (failure._tag === "UcsExternalAppTimeoutError")
+    return Effect.fail(
+      new ExternalAppGatewayTimeoutError({
+        name: "ExternalAppGatewayTimeoutError",
+        data: { message: failure.message },
+      }),
+    )
+  return Effect.fail(
+    new ExternalAppUnavailableError({
+      name: "ExternalAppUnavailableError",
+      data: { message: failure.message, reason: unavailableReason(failure) },
+    }),
+  )
+}
+
+/** Mutating routes add the 409: refusing to guess between editors is a conflict, not a fault. */
+function writeFailure(
+  failure: UcsExternalAppFailure,
+): Effect.Effect<never, ExternalAppBlockedError | ExternalAppUnavailableError | ExternalAppGatewayTimeoutError> {
+  if (failure._tag === "UcsExternalAppInstanceAmbiguityError")
+    return Effect.fail(
+      new ExternalAppBlockedError({
+        name: "ExternalAppBlockedError",
+        data: { message: failure.message, reason: "instance-selection-required" },
+      }),
+    )
+  return readFailure(failure)
+}
+
+/** 502 collapses two faults; `reason` is what keeps "retry" and "do not retry" apart (D3.3-d). */
+function unavailableReason(failure: UcsExternalAppFailure) {
+  if (failure._tag === "UcsExternalAppProtocolError") return "protocol"
+  if (failure._tag === "UcsExternalAppInstanceAmbiguityError") return "instance-selection-required"
+  return "transport"
+}

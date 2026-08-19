@@ -10,6 +10,9 @@ import { Auth } from "@/auth"
 import { BackgroundJob } from "@/background/job"
 import { Command } from "@/command"
 import { Config } from "@/config/config"
+import { ExternalAppEvents } from "@/control-plane/external-app/events"
+import { ExternalAppRegistration } from "@/control-plane/external-app/registration"
+import { ExternalApp } from "@/control-plane/external-app/service"
 import { Workspace } from "@/control-plane/workspace"
 import { Env } from "@/env"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -268,10 +271,16 @@ const app = LayerNode.group([
   ProjectV2.node,
   ProjectCopy.node,
   PtyTicket.node,
+  ExternalApp.node,
+  ExternalAppEvents.node,
+  ExternalAppRegistration.node,
 ])
 
 export function createRoutes(
   corsOptions?: CorsOptions,
+  // Seam for tests that need one node of the app graph swapped (for example a
+  // fake external-app registration) without rebuilding this composition root.
+  replacements: LayerNode.Replacements = [],
 ): Layer.Layer<never, EffectConfig.ConfigError, RouteRequirements> {
   const locationServiceMapV2 = buildLocationServiceMap()
 
@@ -305,7 +314,7 @@ export function createRoutes(
     ),
     Layer.provide(locationServiceMapV2),
 
-    Layer.provide(AppNodeBuilderV1.build(app)),
+    Layer.provide(AppNodeBuilderV1.build(app, replacements)),
     // Must stay last: layers provided later in this pipe build beneath earlier ones,
     // so Observability must come after every service graph. Otherwise eagerly forked
     // fibers (e.g. the ModelsDev background refresh) capture Effect's default stdout
