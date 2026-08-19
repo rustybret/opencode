@@ -145,7 +145,7 @@ else
     fi
     if [[ "$HAD_REGENERATE" == "1" ]]; then
       echo "== regenerating lockfile with bun install =="
-      bun install --frozen-lockfile=false --quiet
+      bun install --quiet
       git add bun.lock
     fi
     git commit --no-verify -m "merge: sync $REMOTE/$BRANCH ($(git rev-parse --short "$REMOTE/$BRANCH")) into fork/local"
@@ -153,7 +153,7 @@ else
     # Clean textual merge: if bun.lock was modified by the merge, ensure it stays consistent with fork package.json
     if git diff --name-only "$PRE_MERGE_HEAD" HEAD | grep -q "^bun\.lock$"; then
       echo "== reconciling lockfile on clean merge =="
-      bun install --frozen-lockfile=false --quiet
+      bun install --quiet
       if [[ -n "$(git status --porcelain bun.lock)" ]]; then
         git add bun.lock
         git commit --amend --no-verify --no-edit
