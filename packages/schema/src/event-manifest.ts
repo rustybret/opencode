@@ -3,6 +3,7 @@ export * as EventManifest from "./event-manifest"
 import { Catalog } from "./catalog"
 import { Durable } from "./durable-event-manifest"
 import { Event } from "./event"
+import { ExternalAppEvent } from "./external-app-event"
 import { FileSystem } from "./filesystem"
 import { FileSystemWatcher } from "./filesystem-watcher"
 import { InstallationEvent } from "./installation-event"
@@ -58,6 +59,7 @@ export const ServerDefinitions = Event.inventory(
   ...foundationDefinitions,
   ...featureDefinitions,
   ...SessionTodo.Event.Definitions,
+  ...ExternalAppEvent.Definitions,
 )
 
 export const Definitions = Event.inventory(
@@ -79,6 +81,7 @@ export const Definitions = Event.inventory(
   ...WorkspaceEvent.Definitions,
   ...WorktreeEvent.Definitions,
   ...ServerEvent.Definitions,
+  ...ExternalAppEvent.Definitions,
 )
 export const Latest = Event.latest(Definitions)
 export { Durable }
