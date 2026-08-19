@@ -18,7 +18,8 @@ export const UcsRouteId = Schema.Literals(["ucs.topology",
   "ucs.session",
   "ucs.evidence",
   "ucs.events",
-  "ucs.capabilities",])
+  "ucs.capabilities",
+  "ucs.external-apps",])
 export type UcsRouteId = typeof UcsRouteId.Type
 
 export const UcsCommandId = Schema.Literals(["ucs.status",
