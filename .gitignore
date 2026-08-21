@@ -32,7 +32,9 @@ UPCOMING_CHANGELOG.md
 logs/
 *.bun-build
 tsconfig.tsbuildinfo
-/.opencode/magic-context
+/.opencode/
+/.claude/
+/.zed/
 /coordination_notes
 /coordination_notes
 coordination_notes/.rate-limits.json

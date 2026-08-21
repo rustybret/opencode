@@ -60,5 +60,24 @@ keep-deleted: SECURITY.md
 keep-deleted: STATS.md
 keep-deleted: screenshot-uk.png
 
+# --- Upstream .opencode directory (configs, commands, agents, skills, plugins, tools, themes)
+keep-deleted: .opencode/*
+
+# --- Upstream GitHub Action runner package (github/ directory, distinct from .github/)
+keep-deleted: github/*
+
+# --- Upstream demo/marketing video artifacts
+keep-deleted: artifacts/*
+
+# --- Upstream git hooks & IDE / toolchain configs
+keep-deleted: .husky/*
+keep-deleted: .vscode/*
+keep-deleted: .zed/*
+keep-deleted: .claude/*
+keep-deleted: .oxlintrc.json
+keep-deleted: .prettierignore
+keep-deleted: flake.lock
+keep-deleted: flake.nix
+
 # --- Regenerable lockfile: checkout upstream version and regenerate with bun install
 regenerate: bun.lock
