@@ -28,6 +28,7 @@
     "build:all": "bun run ./packages/opencode/script/build.ts",
     "package:arcus": "bun run script/package-arcus.ts",
     "package:arcus:build": "bun run script/package-arcus.ts --build",
+    "publish:arcus": "script/publish-arcus-artifact.sh",
     "generate": "bun run script/generate.ts",
     "gate:phase2": "bun run script/ucs-phase2-gate-check.ts",
     "extract:g4-fixture": "bun run script/extract-g4-fixture.ts",
