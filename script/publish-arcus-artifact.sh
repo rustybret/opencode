@@ -81,51 +81,39 @@ trap 'rm -rf "$VERIFY_DIR"' EXIT
 
 gh release download "$TAG" --repo "$REPO" --dir "$VERIFY_DIR" --clobber
 
-DOWNLOADED_HASHES_JSON="{}"
+python3 - "$MANIFEST_FILE" "$VERIFY_DIR" <<'EOF'
+import json, sys, os, hashlib
 
-for a in "${ARCHIVES[@]}"; do
-  archive_name="$(basename "$a")"
-  downloaded_file="$VERIFY_DIR/$archive_name"
-  
-  if [[ ! -f "$downloaded_file" ]]; then
-    echo "ERROR: Re-download failed for $archive_name from release $TAG" >&2
-    exit 1
-  fi
-  
-  if command -v shasum >/dev/null 2>&1; then
-    downloaded_hash="$(shasum -a 256 "$downloaded_file" | awk '{print $1}')"
-  else
-    downloaded_hash="$(sha256sum "$downloaded_file" | awk '{print $1}')"
-  fi
-  
-  echo "  ✓ Verified download for $archive_name: $downloaded_hash"
-  
-  DOWNLOADED_HASHES_JSON="$(node -e "
-    const hashes = JSON.parse(process.argv[1]);
-    hashes['$archive_name'] = '$downloaded_hash';
-    console.log(JSON.stringify(hashes));
-  " "$DOWNLOADED_HASHES_JSON")"
-done
+manifest_path = sys.argv[1]
+verify_dir = sys.argv[2]
 
-# Step 5: Update dist-arcus/arcus-manifest.json with verified downloaded hashes
-echo "[publish] Stamping manifest with verified downloaded hashes..."
-bun -e '
-import { readFileSync, writeFileSync } from "fs";
-const manifestPath = process.argv[2];
-const hashes = JSON.parse(process.argv[3]);
-const doc = JSON.parse(readFileSync(manifestPath, "utf8"));
+with open(manifest_path) as f:
+    manifest = json.load(f)
 
-const matrix = doc.daemon?.target_matrix ?? {};
-for (const [key, target] of Object.entries(matrix)) {
-  const filename = target.asset?.filename;
-  if (filename && hashes[filename]) {
-    target.asset.sha256 = hashes[filename];
-  }
-}
-writeFileSync(manifestPath, JSON.stringify(doc, null, 2) + "\n");
-' "$MANIFEST_FILE" "$DOWNLOADED_HASHES_JSON"
+matrix = manifest.get("daemon", {}).get("target_matrix", {})
+for target_key, target in matrix.items():
+    filename = target.get("asset", {}).get("filename")
+    if not filename:
+        continue
+    filepath = os.path.join(verify_dir, filename)
+    if not os.path.isfile(filepath):
+        print(f"ERROR: Verified asset {filename} not found in {verify_dir}", file=sys.stderr)
+        sys.exit(1)
+    
+    h = hashlib.sha256()
+    with open(filepath, "rb") as f_in:
+        for chunk in iter(lambda: f_in.read(65536), b""):
+            h.update(chunk)
+    actual_hash = h.hexdigest()
+    target["asset"]["sha256"] = actual_hash
+    print(f"  ✓ Verified published download {filename}: {actual_hash}")
 
-# Step 6: Sync verified manifest to local Arcus repository
+with open(manifest_path, "w") as f_out:
+    json.dump(manifest, f_out, indent=2)
+    f_out.write("\n")
+EOF
+
+# Step 5: Sync verified manifest to local Arcus repository
 ARCUS_DIR=""
 if [[ -n "${ARCUS_REPO_PATH:-}" && -d "$ARCUS_REPO_PATH" ]]; then
   ARCUS_DIR="$ARCUS_REPO_PATH"
