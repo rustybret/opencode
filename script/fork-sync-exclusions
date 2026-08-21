@@ -79,5 +79,17 @@ keep-deleted: .prettierignore
 keep-deleted: flake.lock
 keep-deleted: flake.nix
 
+# --- Upstream-specific release, publish, and GitHub Action helper scripts
+keep-deleted: script/publish.ts
+keep-deleted: script/release
+keep-deleted: script/beta.ts
+keep-deleted: script/duplicate-pr.ts
+keep-deleted: script/github/*
+keep-deleted: script/stats.ts
+keep-deleted: script/raw-changelog.ts
+keep-deleted: script/changelog.ts
+keep-deleted: script/version.ts
+keep-deleted: packages/opencode/script/publish.ts
+
 # --- Regenerable lockfile: checkout upstream version and regenerate with bun install
 regenerate: bun.lock

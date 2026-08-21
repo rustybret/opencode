@@ -24,6 +24,13 @@
     "fork-sync": "script/fork-sync.sh",
     "trigger:buildkit": "bun run script/trigger-buildkit.ts",
     "trigger:buildkit:release": "bun run script/trigger-buildkit.ts --release",
+    "build:single": "bun run ./packages/opencode/script/build.ts --single",
+    "build:all": "bun run ./packages/opencode/script/build.ts",
+    "package:arcus": "bun run script/package-arcus.ts",
+    "package:arcus:build": "bun run script/package-arcus.ts --build",
+    "generate": "bun run script/generate.ts",
+    "gate:phase2": "bun run script/ucs-phase2-gate-check.ts",
+    "extract:g4-fixture": "bun run script/extract-g4-fixture.ts",
     "test": "echo 'do not run tests from root' && exit 1"
   },
   "workspaces": {
