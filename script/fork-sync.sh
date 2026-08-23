@@ -91,8 +91,8 @@ matches_regenerate() {
 
 # --- 1. fetch ------------------------------------------------------------------
 echo "== fetch $REMOTE and origin =="
-git fetch "$REMOTE"
-git fetch origin
+git fetch "$REMOTE" "$BRANCH"
+git fetch origin "$MIRROR_BRANCH" "$LOCAL_BRANCH" || true
 
 # --- 2. fast-forward the pristine mirror ---------------------------------------
 echo "== fast-forward $MIRROR_BRANCH to $REMOTE/$BRANCH =="
