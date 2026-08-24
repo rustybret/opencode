@@ -4,15 +4,58 @@ import { errorMessage } from "@opencode-ai/tui/util/error"
 import { validateSession } from "../tui/validate-session"
 import { ServerAuth } from "@/server/auth"
 
+export function resolveAttachUrl(
+  input?: string,
+  config?: { server?: { hostname?: string; port?: number } },
+): string {
+  const defaultHostname = config?.server?.hostname || "127.0.0.1"
+  const defaultPort = config?.server?.port || 4096
+
+  if (!input || !input.trim()) {
+    return `http://${defaultHostname}:${defaultPort}`
+  }
+
+  const trimmed = input.trim()
+
+  // If the input is purely numeric digits (e.g. "4097", "8080"), treat as port on default host
+  if (/^\d+$/.test(trimmed)) {
+    const port = parseInt(trimmed, 10)
+    return `http://${defaultHostname}:${port}`
+  }
+
+  // Prepend http:// if missing protocol scheme
+  let withScheme = trimmed
+  if (!/^https?:\/\//i.test(withScheme)) {
+    withScheme = `http://${withScheme}`
+  }
+
+  try {
+    const parsed = new URL(withScheme)
+    // Check if port was explicitly specified in the input string
+    const hasExplicitPort = parsed.port !== "" || /:\d+(\/|$|\?|#)/.test(withScheme)
+    if (!hasExplicitPort) {
+      parsed.port = String(defaultPort)
+    }
+    const result = parsed.toString()
+    // Strip trailing slash added by WHATWG URL when path is default "/" and input didn't have "/"
+    if (parsed.pathname === "/" && !withScheme.endsWith("/") && !trimmed.endsWith("/")) {
+      return result.slice(0, -1)
+    }
+    return result
+  } catch {
+    return withScheme
+  }
+}
+
 export const AttachCommand = cmd({
-  command: "attach <url>",
+  command: "attach [url]",
   describe: "attach to a running opencode server",
   builder: (yargs) =>
     yargs
       .positional("url", {
         type: "string",
-        describe: "http://localhost:4096",
-        demandOption: true,
+        describe: "http://127.0.0.1:4096, port number, or server hostname",
+        demandOption: false,
       })
       .option("dir", {
         type: "string",
@@ -78,10 +121,18 @@ export const AttachCommand = cmd({
       }
     })()
 
+    const { Config } = await import("@/config/config")
+    const { AppRuntime } = await import("@/effect/app-runtime")
+    const globalConfig = await AppRuntime.runPromise(Config.Service.use((cfg) => cfg.getGlobal())).catch(
+      () => undefined,
+    )
+
+    const url = resolveAttachUrl(args.url, globalConfig)
+
     if (args.mini) {
       const { runMini } = await import("./run")
       await runMini({
-        attach: args.url,
+        attach: url,
         directory,
         password: args.password,
         username: args.username,
@@ -116,7 +167,7 @@ export const AttachCommand = cmd({
 
     try {
       await validateSession({
-        url: args.url,
+        url,
         sessionID: args.session,
         directory,
         headers,
@@ -132,7 +183,7 @@ export const AttachCommand = cmd({
     const { createLegacyTuiPluginHost } = await import("@/plugin/tui/runtime")
     await Effect.runPromise(
       run({
-        url: args.url,
+        url,
         config,
         pluginHost: createLegacyTuiPluginHost(),
         args: {
