@@ -28,19 +28,16 @@ Future syncs are a single command via `script/fork-sync.sh` (or `git sync-upstre
 
 Run `bun typecheck` from `packages/opencode` (never `tsc` directly) before building.
 
-### Release watcher (orw)
+### Binary Distribution & Automated Builds (Hosted ORW -> BuildKit -> Arcus)
 
-`@cortexkit/orw` runs at `~/opencode-release-watch/` via launchd (30-min poll). On each new upstream release it AI-merges `fork/local` onto the release tag using `claude-opus-4-8`, builds a native CLI (TUI/web only — desktop disabled), and auto-installs to `~/.opencode/bin/opencode`. `~/.opencode/bin/opencode` is prepended to PATH and takes precedence — `which opencode` resolves here. `/opt/homebrew/bin/opencode` holds the vanilla upstream Homebrew version as a manual fallback only.
+The canonical distribution pipeline for OpenCode native binaries is fully automated through the Cloudhome cluster:
 
-After pushing new commits to `fork/local` with no upstream release, trigger a rebuild manually through the hardened wrapper — **never** call `bunx @cortexkit/orw check` directly (that bypasses the independent smoke gate and is what shipped the broken v1.18.2 `plugin-not-defined` build):
+1. **Hosted ORW (`updates/orw-sync`)**: Hourly in-cluster Kubernetes CronJob tracks upstream releases, AI-merges `upstream/dev` onto `fork/local`, and pushes merge commits.
+2. **Multi-Arch BuildKit**: In-cluster parallel daemons (`altos-worker-01` amd64 and `sj-b-worker-01` arm64) compile all 5 platform native binaries (`darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `win32-x64`) and attach them to GitHub Releases on `rustybret/opencode`.
+3. **Arcus Manifest Publication**: Cloudhome's `stamp-arcus-manifest.js` job verifies downloaded asset hashes and commits `manifests/opencode/v<version>.json` to `rustybret/arcus`, and `uc-studio` blesses the composition in `arcus-blessed-plugins.json`.
+4. **Local Consumption**: Developer workstations update via `opencode upgrade` / `upgradeFromArcus()` or `arcus pull`.
 
-```bash
-cd ~/opencode-release-watch && run/orw-check check --force
-```
-
-The wrapper pins the ORW version, refuses to run unless `install_cli=false`, and independently verifies the built artifact (exact `--version` match + isolated `GET /agent` HTTP 200 smoke on an ephemeral port with temp XDG dirs) before ever reporting success. To re-verify the artifact already recorded in state without rebuilding, run `run/orw-check verify`.
-
-Operator runbook: `agent-harness/docs/runbooks/OpenCode-Release-Watcher.md`
+*Note: The legacy local macOS launchd job at `~/opencode-release-watch/` has been disabled and deprecated in favor of this hosted pipeline. `~/opencode-release-watch/` is retained only as an offline emergency fallback for manual testing.*
 
 ### Deployment policy: snapshots disabled by default
 
