@@ -31,6 +31,7 @@ EXCLUSIONS="$ROOT/script/fork-sync-exclusions"
 REMOTE="${1:-upstream}"
 BRANCH="${2:-dev}"
 MIRROR_BRANCH="opencode-mirror"
+LOCAL_BRANCH="${FORK_SYNC_LOCAL_BRANCH:-fork/local}"
 NO_PUSH="${FORK_SYNC_NO_PUSH:-0}"
 
 if [[ ! -f "$EXCLUSIONS" ]]; then
@@ -103,18 +104,18 @@ if [[ "$NO_PUSH" != "1" ]]; then
 fi
 
 # --- 3+4. bring fork/local up to date -------------------------------------------
-echo "== merge $MIRROR_BRANCH into fork/local =="
-git checkout -q fork/local
+echo "== merge $MIRROR_BRANCH into $LOCAL_BRANCH =="
+git checkout -q "$LOCAL_BRANCH"
 PRE_MERGE_HEAD="$(git rev-parse HEAD)"
 
 if git merge --ff-only "$MIRROR_BRANCH" >/dev/null 2>&1; then
   if [[ "$(git rev-parse HEAD)" == "$(git rev-parse "$PRE_MERGE_HEAD")" ]]; then
-    echo "fork/local already up to date with $MIRROR_BRANCH"
+    echo "$LOCAL_BRANCH already up to date with $MIRROR_BRANCH"
   else
-    echo "fork/local fast-forwarded to $MIRROR_BRANCH"
+    echo "$LOCAL_BRANCH fast-forwarded to $MIRROR_BRANCH"
   fi
 else
-  echo "fork/local has diverged: merging with a merge commit"
+  echo "$LOCAL_BRANCH has diverged: merging with a merge commit"
   if ! git merge --no-edit "$MIRROR_BRANCH"; then
     echo "== auto-resolving known conflict classes =="
     HAD_REGENERATE=0
@@ -140,7 +141,7 @@ else
       git status --short | grep -E '^(UU|DU|UD|AA|DD|AU|UA)' >&2 || true
       echo "resolve them manually, then finish with:" >&2
       echo "  git add <resolved-files> && git commit --no-verify" >&2
-      echo "then push fork/local:  git push origin fork/local" >&2
+      echo "then push $LOCAL_BRANCH:  git push origin $LOCAL_BRANCH" >&2
       exit 1
     fi
     if [[ "$HAD_REGENERATE" == "1" ]]; then
@@ -148,7 +149,7 @@ else
       bun install --quiet
       git add bun.lock
     fi
-    git commit --no-verify -m "merge: sync $REMOTE/$BRANCH ($(git rev-parse --short "$REMOTE/$BRANCH")) into fork/local"
+    git commit --no-verify -m "merge: sync $REMOTE/$BRANCH ($(git rev-parse --short "$REMOTE/$BRANCH")) into $LOCAL_BRANCH"
   else
     # Clean textual merge: if bun.lock was modified by the merge, ensure it stays consistent with fork package.json
     if git diff --name-only "$PRE_MERGE_HEAD" HEAD | grep -q "^bun\.lock$"; then
@@ -178,7 +179,7 @@ fi
 
 # --- 5. push --------------------------------------------------------------------
 if [[ "$NO_PUSH" != "1" ]]; then
-  git push origin fork/local
+  git push origin "$LOCAL_BRANCH"
 fi
 
 echo "== sync complete =="
