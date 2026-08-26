@@ -25,6 +25,7 @@
 #   FORK_SYNC_NO_PUSH=1 script/fork-sync.sh # skip all pushes (dry run / test mode)
 
 set -euo pipefail
+export HUSKY=0
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXCLUSIONS="$ROOT/script/fork-sync-exclusions"
@@ -33,6 +34,7 @@ BRANCH="${2:-dev}"
 MIRROR_BRANCH="opencode-mirror"
 LOCAL_BRANCH="${FORK_SYNC_LOCAL_BRANCH:-fork/local}"
 NO_PUSH="${FORK_SYNC_NO_PUSH:-0}"
+SKIP_VERIFY="${FORK_SYNC_SKIP_VERIFY:-0}"
 
 if [[ ! -f "$EXCLUSIONS" ]]; then
   echo "error: exclusion manifest not found: $EXCLUSIONS" >&2
@@ -175,6 +177,18 @@ while IFS= read -r f; do
 done < <(git diff --name-only --diff-filter=A "$PRE_MERGE_HEAD" HEAD)
 if [[ "$SWEPT" == "1" ]]; then
   git commit --amend --no-verify --no-edit
+fi
+
+# --- 4c. sync submodules -------------------------------------------------------
+echo "== synchronizing submodules =="
+git submodule sync --recursive --quiet || true
+git submodule update --init --recursive --quiet || true
+
+# --- 4d. pre-push verification gates -------------------------------------------
+if [[ "$SKIP_VERIFY" != "1" ]]; then
+  echo "== running pre-push verification gates =="
+  bun turbo typecheck
+  bun test --cwd packages/opencode test/fork-sync-model.test.ts
 fi
 
 # --- 5. push --------------------------------------------------------------------

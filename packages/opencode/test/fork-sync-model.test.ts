@@ -82,6 +82,37 @@ describe("#given the fork sync model", () => {
     }
   })
 
+  test("script/fork-sync.sh exports HUSKY=0 to suppress hooks during sync", () => {
+    const script = readFileSync(SCRIPT, "utf8")
+    expect(script).toContain("export HUSKY=0")
+  })
+
+  test("all patchedDependencies in root package.json reference existing patch files", () => {
+    const pkgPath = join(REPO_ROOT, "package.json")
+    expect(existsSync(pkgPath)).toBe(true)
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8"))
+    const patched = pkg.patchedDependencies ?? {}
+    expect(Object.keys(patched).length).toBeGreaterThan(0)
+    for (const [dep, patchRel] of Object.entries(patched)) {
+      const patchPath = join(REPO_ROOT, patchRel as string)
+      expect(existsSync(patchPath), `missing patch file for ${dep}: ${patchRel}`).toBe(true)
+    }
+  })
+
+  test("protected fork instruction files retain fork identity and two-branch documentation", () => {
+    expect(existsSync(AGENTS_DOC)).toBe(true)
+    const agents = readFileSync(AGENTS_DOC, "utf8")
+    expect(agents).toContain("Fork Development")
+    expect(agents).toContain("opencode-mirror")
+    expect(agents).toContain("fork/local")
+
+    expect(existsSync(CONTRIBUTING_DOC)).toBe(true)
+    const contributing = readFileSync(CONTRIBUTING_DOC, "utf8")
+    expect(contributing).toContain("Fork Development")
+    expect(contributing).toContain("opencode-mirror")
+    expect(contributing).toContain("fork/local")
+  })
+
   test("maintenance doc code fences contain no banned commands", () => {
     for (const docPath of [AGENTS_DOC, CONTRIBUTING_DOC, README_DOC]) {
       if (!existsSync(docPath)) continue
