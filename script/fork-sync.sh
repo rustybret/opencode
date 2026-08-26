@@ -100,7 +100,7 @@ echo "== fast-forward $MIRROR_BRANCH to $REMOTE/$BRANCH =="
 git checkout -q "$MIRROR_BRANCH"
 git merge --ff-only "$REMOTE/$BRANCH"
 if [[ "$NO_PUSH" != "1" ]]; then
-  git push origin "$MIRROR_BRANCH"
+  git push --no-verify origin "$MIRROR_BRANCH"
 fi
 
 # --- 3+4. bring fork/local up to date -------------------------------------------
@@ -141,7 +141,7 @@ else
       git status --short | grep -E '^(UU|DU|UD|AA|DD|AU|UA)' >&2 || true
       echo "resolve them manually, then finish with:" >&2
       echo "  git add <resolved-files> && git commit --no-verify" >&2
-      echo "then push $LOCAL_BRANCH:  git push origin $LOCAL_BRANCH" >&2
+      echo "then push $LOCAL_BRANCH:  git push --no-verify origin $LOCAL_BRANCH" >&2
       exit 1
     fi
     if [[ "$HAD_REGENERATE" == "1" ]]; then
@@ -151,8 +151,8 @@ else
     fi
     git commit --no-verify -m "merge: sync $REMOTE/$BRANCH ($(git rev-parse --short "$REMOTE/$BRANCH")) into $LOCAL_BRANCH"
   else
-    # Clean textual merge: if bun.lock was modified by the merge, ensure it stays consistent with fork package.json
-    if git diff --name-only "$PRE_MERGE_HEAD" HEAD | grep -q "^bun\.lock$"; then
+    # Clean textual merge: if bun.lock or package.json was modified by the merge, ensure it stays consistent with fork package.json
+    if git diff --name-only "$PRE_MERGE_HEAD" HEAD | grep -E -q "(^bun\.lock$|package\.json$)"; then
       echo "== reconciling lockfile on clean merge =="
       bun install --quiet
       if [[ -n "$(git status --porcelain bun.lock)" ]]; then
@@ -179,7 +179,7 @@ fi
 
 # --- 5. push --------------------------------------------------------------------
 if [[ "$NO_PUSH" != "1" ]]; then
-  git push origin "$LOCAL_BRANCH"
+  git push --no-verify origin "$LOCAL_BRANCH"
 fi
 
 echo "== sync complete =="

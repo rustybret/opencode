@@ -73,6 +73,15 @@ describe("#given the fork sync model", () => {
     expect(script).toContain("opencode-mirror")
   })
 
+  test("script/fork-sync.sh uses --no-verify on git push to bypass pre-push hooks", () => {
+    const script = readFileSync(SCRIPT, "utf8")
+    const pushLines = script.split("\n").filter((l) => l.includes("git push"))
+    expect(pushLines.length).toBeGreaterThan(0)
+    for (const line of pushLines) {
+      expect(line).toContain("--no-verify")
+    }
+  })
+
   test("maintenance doc code fences contain no banned commands", () => {
     for (const docPath of [AGENTS_DOC, CONTRIBUTING_DOC, README_DOC]) {
       if (!existsSync(docPath)) continue
