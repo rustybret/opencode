@@ -158,3 +158,63 @@ it.effect("subagent inherits parent session deny rules as hard runtime ceilings"
     expect(Permission.evaluate("bash", "git status", effective).action).toBe("deny")
   }),
 )
+
+it.effect("subagent preserves parent session carve-outs when permissive", () =>
+  Effect.sync(() => {
+    const executor = testAgent({
+      name: "executor",
+      mode: "subagent",
+      permission: {
+        edit: "allow",
+      },
+    })
+    const parentSessionPermission = Permission.fromConfig({
+      edit: {
+        "*": "deny",
+        "plans/*.md": "allow",
+        ".omo/**": "allow",
+      },
+    })
+    const effective = Permission.merge(
+      executor.permission,
+      deriveSubagentSessionPermission({
+        parentSessionPermission,
+        subagent: executor,
+      }),
+    )
+
+    expect(Permission.evaluate("edit", ".omo/boulder.json", effective).action).not.toBe("deny")
+    expect(Permission.evaluate("edit", "plans/x.md", effective).action).not.toBe("deny")
+    expect(Permission.evaluate("edit", "src/x.ts", effective).action).toBe("deny")
+    expect(Permission.disabled(["edit", "write", "apply_patch"], effective)).toEqual(new Set())
+  }),
+)
+
+it.effect("subagent does not expand privileges from parent carve-outs when read-only", () =>
+  Effect.sync(() => {
+    const executor = testAgent({
+      name: "executor",
+      mode: "subagent",
+      permission: {
+        "*": "deny",
+        read: "allow",
+      },
+    })
+    const parentSessionPermission = Permission.fromConfig({
+      edit: {
+        "*": "deny",
+        "plans/*.md": "allow",
+        ".omo/**": "allow",
+      },
+    })
+    const effective = Permission.merge(
+      executor.permission,
+      deriveSubagentSessionPermission({
+        parentSessionPermission,
+        subagent: executor,
+      }),
+    )
+
+    expect(Permission.evaluate("edit", "plans/x.md", effective).action).toBe("deny")
+  }),
+)

@@ -1,5 +1,6 @@
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import type { Agent } from "./agent"
+import { evaluate } from "../permission"
 
 /**
  * Build the `permission` ruleset for a subagent's session when it's spawned
@@ -17,10 +18,40 @@ export function deriveSubagentSessionPermission(input: {
 }): PermissionV1.Ruleset {
   const canTask = input.subagent.permission.some((rule) => rule.permission === "task")
   const canTodo = input.subagent.permission.some((rule) => rule.permission === "todowrite")
+
+  const externalDirectoryRules = input.parentSessionPermission.filter(
+    (rule) => rule.permission === "external_directory"
+  )
+
+  // Group parent session rules by permission (excluding external_directory)
+  const rulesByPermission = new Map<string, PermissionV1.Ruleset>()
+  for (const rule of input.parentSessionPermission) {
+    if (rule.permission === "external_directory") continue
+    const group = rulesByPermission.get(rule.permission) ?? []
+    group.push(rule)
+    rulesByPermission.set(rule.permission, group)
+  }
+
+  const propagatedRules: PermissionV1.Ruleset = []
+  for (const group of rulesByPermission.values()) {
+    const hasDeny = group.some((rule) => rule.action === "deny")
+    if (!hasDeny) continue
+
+    for (const rule of group) {
+      if (rule.action === "deny") {
+        propagatedRules.push(rule)
+      } else {
+        // Intersection projection: parent carve-outs never grant beyond the child's own capabilities
+        if (evaluate(rule.permission, rule.pattern, input.subagent.permission).action !== "deny") {
+          propagatedRules.push(rule)
+        }
+      }
+    }
+  }
+
   return [
-    ...input.parentSessionPermission.filter(
-      (rule) => rule.permission === "external_directory" || rule.action === "deny",
-    ),
+    ...externalDirectoryRules,
+    ...propagatedRules,
     ...(canTodo ? [] : [{ permission: "todowrite" as const, pattern: "*" as const, action: "deny" as const }]),
     ...(canTask ? [] : [{ permission: "task" as const, pattern: "*" as const, action: "deny" as const }]),
   ]
