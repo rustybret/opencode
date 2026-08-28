@@ -27,16 +27,18 @@ const FORBIDDEN_TOKENS: Array<{ token: RegExp; why: string }> = [
   { token: /\breset\s+--hard\b/, why: "destructive reset is banned on pushed branches" },
 ]
 
-function parseManifest(text: string): { keepDeleted: string[]; takeTheirs: string[] } {
+function parseManifest(text: string): { keepDeleted: string[]; takeTheirs: string[]; regenerate: string[] } {
   const keepDeleted: string[] = []
   const takeTheirs: string[] = []
+  const regenerate: string[] = []
   for (const rawLine of text.split("\n")) {
     const line = rawLine.split("#")[0]!.trim()
     if (line === "") continue
     if (line.startsWith("keep-deleted:")) keepDeleted.push(line.slice("keep-deleted:".length).trim())
     else if (line.startsWith("take-theirs:")) takeTheirs.push(line.slice("take-theirs:".length).trim())
+    else if (line.startsWith("regenerate:")) regenerate.push(line.slice("regenerate:".length).trim())
   }
-  return { keepDeleted, takeTheirs }
+  return { keepDeleted, takeTheirs, regenerate }
 }
 
 function codeFences(text: string): string[] {
@@ -135,7 +137,7 @@ describe("#given the fork sync model", () => {
 
   test("exclusion manifest parses and covers all standing fork deletions", () => {
     expect(existsSync(EXCLUSIONS)).toBe(true)
-    const { keepDeleted } = parseManifest(readFileSync(EXCLUSIONS, "utf8"))
+    const { keepDeleted, regenerate } = parseManifest(readFileSync(EXCLUSIONS, "utf8"))
     for (const glob of [
       ".github/CODEOWNERS",
       ".github/TEAM_MEMBERS",
@@ -148,5 +150,16 @@ describe("#given the fork sync model", () => {
     ]) {
       expect(keepDeleted, `missing keep-deleted glob: ${glob}`).toContain(glob)
     }
+    expect(regenerate).toContain("bun.lock")
+  })
+
+  test("script/fork-sync.sh implements 3-verb handling and uses bun install --no-frozen-lockfile", () => {
+    const script = readFileSync(SCRIPT, "utf8")
+    expect(script).toContain("keep-deleted:*")
+    expect(script).toContain("take-theirs:*")
+    expect(script).toContain("regenerate:*")
+    expect(script).toContain("bun install --no-frozen-lockfile")
+    expect(script).toContain("ecosystem_for")
+    expect(script).toContain("regenerate_targets")
   })
 })

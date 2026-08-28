@@ -24,7 +24,7 @@ export function deriveSubagentSessionPermission(input: {
   )
 
   // Group parent session rules by permission (excluding external_directory)
-  const rulesByPermission = new Map<string, PermissionV1.Ruleset>()
+  const rulesByPermission = new Map<string, PermissionV1.Rule[]>()
   for (const rule of input.parentSessionPermission) {
     if (rule.permission === "external_directory") continue
     const group = rulesByPermission.get(rule.permission) ?? []
@@ -32,7 +32,7 @@ export function deriveSubagentSessionPermission(input: {
     rulesByPermission.set(rule.permission, group)
   }
 
-  const propagatedRules: PermissionV1.Ruleset = []
+  const propagatedRules: PermissionV1.Rule[] = []
   for (const group of rulesByPermission.values()) {
     const hasDeny = group.some((rule) => rule.action === "deny")
     if (!hasDeny) continue

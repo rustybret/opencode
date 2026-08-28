@@ -12,6 +12,8 @@
 #      script/fork-sync-exclusions:
 #        - keep-deleted  -> upstream modifications/restorations are removed
 #        - take-theirs   -> regenerable bundles take upstream's version
+#        - regenerate    -> checkout upstream version, rebuild against merged manifests,
+#                           and stage into the merge commit
 #      and sweep any NEW upstream files that match keep-deleted globs out of
 #      the merge result
 #   5. commit (--no-verify) and push
@@ -51,45 +53,81 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 2
 fi
 
+# --- helpers ------------------------------------------------------------------
+trim() {
+  local var="$1"
+  var="${var#"${var%%[![:space:]]*}"}"
+  var="${var%"${var##*[![:space:]]}"}"
+  printf '%s' "$var"
+}
+
+matches_any() {
+  local p="$1"
+  shift
+  local g
+  for g in "$@"; do
+    [[ "$p" == $g ]] && return 0
+  done
+  return 1
+}
+
 # --- parse the exclusion manifest ---------------------------------------------
 KEEP_DELETED=()
 TAKE_THEIRS=()
 REGENERATE=()
 while IFS= read -r line || [[ -n "$line" ]]; do
-  line="${line%%#*}"                          # strip comments
-  line="${line#"${line%%[![:space:]]*}"}"     # trim leading whitespace
+  line="${line%%#*}"
+  line="$(trim "$line")"
   [[ -z "$line" ]] && continue
   case "$line" in
-    keep-deleted:*) KEEP_DELETED+=("${line#keep-deleted:}") ;;
-    take-theirs:*)  TAKE_THEIRS+=("${line#take-theirs:}") ;;
-    regenerate:*)   REGENERATE+=("${line#regenerate:}") ;;
+    keep-deleted:*) KEEP_DELETED+=("$(trim "${line#keep-deleted:}")") ;;
+    take-theirs:*)  TAKE_THEIRS+=("$(trim "${line#take-theirs:}")") ;;
+    regenerate:*)   REGENERATE+=("$(trim "${line#regenerate:}")") ;;
     *) echo "warning: unrecognized manifest line: $line" >&2 ;;
   esac
 done < "$EXCLUSIONS"
 
 matches_keep_deleted() {
-  local p="$1" g
-  for g in "${KEEP_DELETED[@]}"; do
-    g="${g#"${g%%[![:space:]]*}"}"
-    [[ "$p" == $g ]] && return 0
-  done
-  return 1
+  matches_any "$1" "${KEEP_DELETED[@]}"
 }
 matches_take_theirs() {
-  local p="$1" g
-  for g in "${TAKE_THEIRS[@]}"; do
-    g="${g#"${g%%[![:space:]]*}"}"
-    [[ "$p" == $g ]] && return 0
-  done
-  return 1
+  matches_any "$1" "${TAKE_THEIRS[@]}"
 }
 matches_regenerate() {
-  local p="$1" g
-  for g in "${REGENERATE[@]}"; do
-    g="${g#"${g%%[![:space:]]*}"}"
-    [[ "$p" == $g ]] && return 0
+  matches_any "$1" "${REGENERATE[@]}"
+}
+
+ecosystem_for() {
+  local target="$1"
+  local base
+  base="$(basename "$target")"
+  case "$base" in
+    bun.lock|bun.lockb) echo "bun" ;;
+    Cargo.lock) echo "cargo" ;;
+    *)
+      echo "error: unknown ecosystem for regenerate target: $target" >&2
+      return 1
+      ;;
+  esac
+}
+
+regenerate_targets() {
+  local target dir eco
+  for target in "$@"; do
+    dir="$(dirname "$target")"
+    eco="$(ecosystem_for "$target")" || return 1
+    case "$eco" in
+      bun)
+        echo "== regenerating $target with bun install =="
+        (cd "$ROOT/$dir" && bun install --no-frozen-lockfile --quiet)
+        ;;
+      cargo)
+        echo "== regenerating $target with cargo metadata =="
+        (cd "$ROOT/$dir" && cargo metadata --format-version 1 >/dev/null)
+        ;;
+    esac
+    git add "$ROOT/$target"
   done
-  return 1
 }
 
 # --- 1. fetch ------------------------------------------------------------------
@@ -120,7 +158,7 @@ else
   echo "$LOCAL_BRANCH has diverged: merging with a merge commit"
   if ! git merge --no-edit "$MIRROR_BRANCH"; then
     echo "== auto-resolving known conflict classes =="
-    HAD_REGENERATE=0
+    REGENERATE_TARGETS=()
     for f in $(git diff --name-only --diff-filter=U); do
       if ! git cat-file -e ":2:$f" 2>/dev/null; then
         # deleted by us (no stage-2 blob), modified by them
@@ -130,11 +168,12 @@ else
         fi
       elif matches_regenerate "$f"; then
         git checkout --theirs --quiet -- "$f"
+        git add "$f"
         echo "  took theirs for regeneration: $f"
-        HAD_REGENERATE=1
+        REGENERATE_TARGETS+=("$f")
       elif matches_take_theirs "$f"; then
-        # checkout --theirs on an unmerged path stages the result itself
         git checkout --theirs --quiet -- "$f"
+        git add "$f"
         echo "  took theirs (regenerable bundle): $f"
       fi
     done
@@ -146,17 +185,15 @@ else
       echo "then push $LOCAL_BRANCH:  git push --no-verify origin $LOCAL_BRANCH" >&2
       exit 1
     fi
-    if [[ "$HAD_REGENERATE" == "1" ]]; then
-      echo "== regenerating lockfile with bun install =="
-      bun install --quiet
-      git add bun.lock
+    if [[ ${#REGENERATE_TARGETS[@]} -gt 0 ]]; then
+      regenerate_targets "${REGENERATE_TARGETS[@]}"
     fi
     git commit --no-verify -m "merge: sync $REMOTE/$BRANCH ($(git rev-parse --short "$REMOTE/$BRANCH")) into $LOCAL_BRANCH"
   else
     # Clean textual merge: if bun.lock or package.json was modified by the merge, ensure it stays consistent with fork package.json
     if git diff --name-only "$PRE_MERGE_HEAD" HEAD | grep -E -q "(^bun\.lock$|package\.json$)"; then
       echo "== reconciling lockfile on clean merge =="
-      bun install --quiet
+      bun install --no-frozen-lockfile --quiet
       if [[ -n "$(git status --porcelain bun.lock)" ]]; then
         git add bun.lock
         git commit --amend --no-verify --no-edit
