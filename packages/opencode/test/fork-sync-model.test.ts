@@ -73,6 +73,7 @@ describe("#given the fork sync model", () => {
     expect(script).toContain("fork/local")
     expect(script).toContain("fork-sync-exclusions")
     expect(script).toContain("opencode-mirror")
+    expect(script).toContain("origin/$LOCAL_BRANCH")
   })
 
   test("script/fork-sync.sh uses --no-verify on git push to bypass pre-push hooks", () => {

@@ -135,6 +135,20 @@ echo "== fetch $REMOTE and origin =="
 git fetch "$REMOTE" "$BRANCH"
 git fetch origin "$MIRROR_BRANCH" "$LOCAL_BRANCH" || true
 
+# --- 1b. fast-forward local branch to origin if ahead ---------------------------
+if git rev-parse -q --verify "origin/$LOCAL_BRANCH" >/dev/null 2>&1; then
+  ORIGIN_HEAD="$(git rev-parse "origin/$LOCAL_BRANCH")"
+  LOCAL_HEAD="$(git rev-parse HEAD)"
+
+  if [[ "$LOCAL_HEAD" != "$ORIGIN_HEAD" ]]; then
+    if git merge-base --is-ancestor HEAD "origin/$LOCAL_BRANCH" 2>/dev/null; then
+      echo "== fast-forwarding $LOCAL_BRANCH to origin/$LOCAL_BRANCH =="
+      git checkout -q "$LOCAL_BRANCH"
+      git merge --ff-only "origin/$LOCAL_BRANCH"
+    fi
+  fi
+fi
+
 # --- 2. fast-forward the pristine mirror ---------------------------------------
 echo "== fast-forward $MIRROR_BRANCH to $REMOTE/$BRANCH =="
 git checkout -q "$MIRROR_BRANCH"
