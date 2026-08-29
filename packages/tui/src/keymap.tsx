@@ -262,28 +262,47 @@ export function useCommandSlashes(): Accessor<readonly CommandSlashEntry[]> {
   const entries = useKeymapSelector((keymap: OpenTuiKeymap) =>
     keymap.getCommandEntries({
       visibility: "reachable",
-      namespace: "palette",
       filter: isVisiblePaletteCommand,
     }),
   )
 
   return createMemo<CommandSlashEntry[]>(() =>
     entries().flatMap((entry) => {
-      const slashName = entry.command.slashName
-      if (typeof slashName !== "string" || !slashName) return []
-      const slashAliases = entry.command.slashAliases
+      const command = entry.command as typeof entry.command & {
+        slashName?: string
+        slashAliases?: string[]
+        slash?: { name?: string; aliases?: string[] }
+        desc?: string
+        description?: string
+      }
+      const rawSlashName =
+        typeof command.slashName === "string" && command.slashName
+          ? command.slashName
+          : typeof command.slash?.name === "string" && command.slash.name
+            ? command.slash.name
+            : undefined
+      if (!rawSlashName) return []
+      const slashName = rawSlashName.replace(/^\/+/, "")
+      const rawAliases = Array.isArray(command.slashAliases)
+        ? command.slashAliases
+        : Array.isArray(command.slash?.aliases)
+          ? command.slash.aliases
+          : undefined
+      const slashAliases = rawAliases
+        ?.filter((alias): alias is string => typeof alias === "string" && Boolean(alias))
+        .map((alias) => `/${alias.replace(/^\/+/, "")}`)
       return {
         display: `/${slashName}`,
         description:
-          typeof entry.command.desc === "string"
-            ? entry.command.desc
-            : typeof entry.command.title === "string"
-              ? entry.command.title
-              : undefined,
-        aliases: Array.isArray(slashAliases)
-          ? slashAliases.filter((alias): alias is string => typeof alias === "string").map((alias) => `/${alias}`)
-          : undefined,
-        onSelect: () => keymap.dispatchCommand(entry.command.name),
+          typeof command.desc === "string"
+            ? command.desc
+            : typeof command.description === "string"
+              ? command.description
+              : typeof command.title === "string"
+                ? command.title
+                : undefined,
+        aliases: slashAliases,
+        onSelect: () => keymap.dispatchCommand(command.name),
       }
     }),
   )

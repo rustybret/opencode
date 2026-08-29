@@ -6,13 +6,14 @@ import type { DeepMutable } from "@opencode-ai/core/schema"
 import { InvalidError, JsonError } from "@opencode-ai/core/v1/config/error"
 
 export function jsonc(text: string, filepath: string): unknown {
+  const clean = text.replace(/^\uFEFF/, "")
   const errors: JsoncParseError[] = []
-  const data = parseJsoncImpl(text, errors, { allowTrailingComma: true })
+  const data = parseJsoncImpl(clean, errors, { allowTrailingComma: true })
   if (errors.length) {
-    const lines = text.split("\n")
+    const lines = clean.split("\n")
     const issues = errors
       .map((e) => {
-        const beforeOffset = text.substring(0, e.offset).split("\n")
+        const beforeOffset = clean.substring(0, e.offset).split("\n")
         const line = beforeOffset.length
         const column = beforeOffset[beforeOffset.length - 1].length + 1
         const problemLine = lines[line - 1]
@@ -25,7 +26,7 @@ export function jsonc(text: string, filepath: string): unknown {
       .join("\n")
     throw new JsonError({
       path: filepath,
-      message: `\n--- JSONC Input ---\n${text}\n--- Errors ---\n${issues}\n--- End ---`,
+      message: `\n--- JSONC Input ---\n${clean}\n--- Errors ---\n${issues}\n--- End ---`,
     })
   }
 

@@ -47,6 +47,7 @@ function warnOnce(api: string, replacement: string, warn: Warn) {
 }
 
 function toCommand(item: TuiCommand, dialog: LegacyDialog) {
+  const slashName = item.slash?.name ?? item.value
   return {
     namespace: "palette",
     name: item.value,
@@ -56,7 +57,7 @@ function toCommand(item: TuiCommand, dialog: LegacyDialog) {
     suggested: item.suggested,
     hidden: item.hidden,
     enabled: item.enabled,
-    slashName: item.slash?.name,
+    slashName: slashName ? slashName.replace(/^\/+/, "") : undefined,
     slashAliases: item.slash?.aliases,
     run() {
       return item.onSelect?.(dialog)

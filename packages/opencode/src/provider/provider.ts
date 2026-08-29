@@ -490,6 +490,9 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
             "X-Title": "opencode",
             "X-BILLING-INVOKE-ORIGIN": "OpenCode",
           },
+          timeout: false,
+          headerTimeout: 300_000,
+          chunkTimeout: 300_000,
         },
       }),
     vercel: () =>

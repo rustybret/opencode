@@ -51,7 +51,7 @@ import { createFadeIn } from "../../util/signal"
 import { DialogSkill } from "../dialog-skill"
 import { DialogWorkspaceUnavailable } from "../dialog-workspace-unavailable"
 import { useArgs } from "../../context/args"
-import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut, useLeaderActive, useOpencodeKeymap } from "../../keymap"
+import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut, useCommandSlashes, useLeaderActive, useOpencodeKeymap } from "../../keymap"
 import { useTuiConfig } from "../../config"
 import { usePromptWorkspace } from "./workspace"
 import { usePromptMove } from "./move"
@@ -164,6 +164,7 @@ export function Prompt(props: PromptProps) {
   const history = usePromptHistory()
   const stash = usePromptStash()
   const keymap = useOpencodeKeymap()
+  const slashes = useCommandSlashes()
   const agentShortcut = useCommandShortcut("agent.cycle")
   const paletteShortcut = useCommandShortcut("command.palette.show")
   const renderer = useRenderer()
@@ -1056,6 +1057,12 @@ export function Prompt(props: PromptProps) {
           ]
         : []
 
+    const firstLine = inputText.split("\n")[0]
+    const typedCmd = inputText.startsWith("/") ? firstLine.split(" ")[0].slice(1) : undefined
+    const tuiSlash = typedCmd
+      ? slashes().find((s) => s.display.slice(1) === typedCmd || s.aliases?.some((a) => a.slice(1) === typedCmd))
+      : undefined
+
     if (store.mode === "shell") {
       move.startSubmit()
       void sdk.client.session.shell({
@@ -1068,15 +1075,14 @@ export function Prompt(props: PromptProps) {
         command: inputText,
       })
       setStore("mode", "normal")
-    } else if (
-      inputText.startsWith("/") &&
-      sync.data.command.some((x) => x.name === inputText.split("\n")[0].split(" ")[0].slice(1))
-    ) {
+    } else if (tuiSlash) {
+      tuiSlash.onSelect()
+    } else if (typedCmd && sync.data.command.some((x) => x.name === typedCmd)) {
       move.startSubmit()
       // Parse command from first line, preserve multi-line content in arguments
       const firstLineEnd = inputText.indexOf("\n")
-      const firstLine = firstLineEnd === -1 ? inputText : inputText.slice(0, firstLineEnd)
-      const [command, ...firstLineArgs] = firstLine.split(" ")
+      const firstLineText = firstLineEnd === -1 ? inputText : inputText.slice(0, firstLineEnd)
+      const [command, ...firstLineArgs] = firstLineText.split(" ")
       const restOfInput = firstLineEnd === -1 ? "" : inputText.slice(firstLineEnd + 1)
       const args = firstLineArgs.join(" ") + (restOfInput ? "\n" + restOfInput : "")
 
