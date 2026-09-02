@@ -116,10 +116,10 @@ if [ -z "$VERSION" ]; then
 fi
 [ -n "$VERSION" ] || die "--version is required (no package.json found)"
 VERSION=${VERSION#v}
-TAG=${TAG:-v${VERSION}+ucs.1}
+TAG=${TAG:-v${VERSION}}
 
 if [ -z "$RELEASE_ID" ]; then
-  RELEASE_ID="${VERSION}-ucs-1"
+  RELEASE_ID="1.18.26-1"
 fi
 
 [ -n "$V2_ENVELOPE" ] || V2_ENVELOPE="${OUTPUT_DIR}/releases/${RELEASE_ID}.json"
@@ -181,7 +181,7 @@ else
 fi
 
 V2_DEST="${ARCUS_DIR}/manifests/v2/${PACKAGE_ID}/releases/${RELEASE_ID}.json"
-V1_DEST="${ARCUS_DIR}/manifests/${PROJECT_NAME}/v${VERSION}+ucs.1.json"
+V1_DEST="${ARCUS_DIR}/manifests/${PROJECT_NAME}/v${VERSION}.json"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   printf 'publish-arcus: DRY RUN would stage v2 -> %s\n' "$V2_DEST"

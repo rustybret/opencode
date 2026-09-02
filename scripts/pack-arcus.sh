@@ -150,7 +150,7 @@ fi
 VERSION=${VERSION#v}
 
 if [ -z "$RELEASE_ID" ]; then
-  RELEASE_ID="${VERSION}-ucs-1"
+  RELEASE_ID="1.18.26-1"
 fi
 [ -n "$RELEASE_ID" ] || die "could not derive a release_id"
 
@@ -285,13 +285,13 @@ if grep -q '"win32-x64"' "$ENVELOPE_PATH"; then
 fi
 
 # Stage v1 backward-compatible manifest for dual-window publication
-TAG="v${VERSION}+ucs.1"
+TAG="${TAG:-v${VERSION}}"
 V1_MANIFEST="${OUTPUT_DIR}/arcus-manifest.json"
 cat > "$V1_MANIFEST" <<EOF
 {
   "\$schema": "https://raw.githubusercontent.com/rustybret/arcus/main/manifests/schema.json",
   "name": "opencode",
-  "version": "${VERSION}+ucs.1",
+  "version": "${VERSION}",
   "description": "AI-powered development tool (UCS native standalone binary)",
   "harness": "opencode",
   "daemon": {

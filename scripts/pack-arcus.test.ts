@@ -33,7 +33,9 @@ describe("opencode arcus packaging & sync", () => {
       expect(manifest.daemon?.service_id).toBe("opencode-server")
     }
 
-    const v2Path = resolve(repoRoot, "dist-arcus/releases/1.18.26-ucs-1.json")
+    const v2Path = existsSync(resolve(repoRoot, "dist-arcus/releases/1.18.26-1.json"))
+      ? resolve(repoRoot, "dist-arcus/releases/1.18.26-1.json")
+      : resolve(repoRoot, "dist-arcus/releases/1.18.26-ucs-1.json")
     if (existsSync(v2Path)) {
       const envelope = JSON.parse(readFileSync(v2Path, "utf-8"))
       expect(envelope.signed?.schema_version).toBe(2)
