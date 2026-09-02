@@ -8,29 +8,69 @@ import { Flag } from "./flag/flag"
 import { makeGlobalNode } from "./effect/app-node"
 
 const app = "opencode"
-const data = path.join(xdgData!, app)
-const cache = path.join(xdgCache!, app)
-const config = path.join(xdgConfig!, app)
-const state = path.join(xdgState!, app)
-const tmp = path.join(os.tmpdir(), app)
+
+let customConfig: string | undefined
+let customData: string | undefined
+let customCache: string | undefined
+let customState: string | undefined
 
 const paths = {
   get home() {
     return process.env.OPENCODE_TEST_HOME ?? os.homedir()
   },
-  data,
-  bin: path.join(cache, "bin"),
-  log: path.join(data, "log"),
-  repos: path.join(data, "repos"),
-  cache,
-  config,
-  state,
-  tmp,
+  get data() {
+    if (customData) return customData
+    if (process.env.XDG_DATA_HOME) return path.join(process.env.XDG_DATA_HOME, app)
+    if (process.env.OPENCODE_TEST_HOME) return path.join(process.env.OPENCODE_TEST_HOME, ".local", "share", app)
+    return path.join(xdgData!, app)
+  },
+  set data(v: string) {
+    customData = v
+  },
+  get bin() {
+    return path.join(this.cache, "bin")
+  },
+  get log() {
+    return path.join(this.data, "log")
+  },
+  get repos() {
+    return path.join(this.data, "repos")
+  },
+  get cache() {
+    if (customCache) return customCache
+    if (process.env.XDG_CACHE_HOME) return path.join(process.env.XDG_CACHE_HOME, app)
+    if (process.env.OPENCODE_TEST_HOME) return path.join(process.env.OPENCODE_TEST_HOME, ".cache", app)
+    return path.join(xdgCache!, app)
+  },
+  set cache(v: string) {
+    customCache = v
+  },
+  get config() {
+    if (customConfig) return customConfig
+    if (process.env.XDG_CONFIG_HOME) return path.join(process.env.XDG_CONFIG_HOME, app)
+    if (process.env.OPENCODE_TEST_HOME) return path.join(process.env.OPENCODE_TEST_HOME, ".config", app)
+    return path.join(xdgConfig!, app)
+  },
+  set config(v: string) {
+    customConfig = v
+  },
+  get state() {
+    if (customState) return customState
+    if (process.env.XDG_STATE_HOME) return path.join(process.env.XDG_STATE_HOME, app)
+    if (process.env.OPENCODE_TEST_HOME) return path.join(process.env.OPENCODE_TEST_HOME, ".local", "state", app)
+    return path.join(xdgState!, app)
+  },
+  set state(v: string) {
+    customState = v
+  },
+  get tmp() {
+    return path.join(os.tmpdir(), app)
+  },
 }
 
 export const Path = paths
 
-Flock.setGlobal({ state })
+Flock.setGlobal({ state: Path.state })
 
 await Promise.all([
   fs.mkdir(Path.data, { recursive: true }),

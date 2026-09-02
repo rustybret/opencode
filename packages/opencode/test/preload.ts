@@ -83,6 +83,16 @@ delete process.env["OTEL_EXPORTER_OTLP_ENDPOINT"]
 delete process.env["OTEL_EXPORTER_OTLP_HEADERS"]
 delete process.env["OTEL_RESOURCE_ATTRIBUTES"]
 
+delete process.env["OPENCODE_CONFIG"]
+delete process.env["OPENCODE_CONFIG_CONTENT"]
+delete process.env["OPENCODE_CONFIG_DIR"]
+delete process.env["OPENCODE_PERMISSION"]
+delete process.env["OPENCODE_DISABLE_PROJECT_CONFIG"]
+delete process.env["OPENCODE_DISABLE_AUTOCOMPACT"]
+delete process.env["OPENCODE_DISABLE_PRUNE"]
+delete process.env["OPENCODE_DISABLE_AUTOUPDATE"]
+delete process.env["OPENCODE_DISABLE_MODELS_FETCH"]
+
 // Use in-memory sqlite
 process.env["OPENCODE_DB"] = ":memory:"
 

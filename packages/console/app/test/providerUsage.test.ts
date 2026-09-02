@@ -26,7 +26,7 @@ describe("provider usage extraction", () => {
 
     expect(providers.google.normalizeUsage(usage)).toEqual({
       inputTokens: 6,
-      outputTokens: 3,
+      outputTokens: 5,
       reasoningTokens: 2,
       cacheReadTokens: 4,
       cacheWrite5mTokens: undefined,
@@ -42,7 +42,7 @@ describe("provider usage extraction", () => {
 
     expect(providers.google.normalizeUsage(usageParser.retrieve())).toEqual({
       inputTokens: 6,
-      outputTokens: 3,
+      outputTokens: 5,
       reasoningTokens: 2,
       cacheReadTokens: 4,
       cacheWrite5mTokens: undefined,

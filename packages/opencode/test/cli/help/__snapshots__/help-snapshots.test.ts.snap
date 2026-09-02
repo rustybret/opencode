@@ -42,12 +42,12 @@ Options:
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode attach --help 1`] = `
-"opencode attach <url>
+"opencode attach [url]
 
 attach to a running opencode server
 
 Positionals:
-  url  http://localhost:4096                                                     [string] [required]
+  url  http://127.0.0.1:4096, port number, or server hostname                               [string]
 
 Options:
   -h, --help          show help                                                            [boolean]

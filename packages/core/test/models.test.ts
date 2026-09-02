@@ -27,7 +27,7 @@ afterAll(() => {
   Flag.OPENCODE_DISABLE_MODELS_FETCH = ORIGINAL_DISABLE_FETCH
 })
 
-const cacheFile = path.join(Global.Path.cache, "models.json")
+const cacheFile = () => path.join(Global.Path.cache, "models.json")
 
 const fixture: Record<string, ModelsDev.Provider> = {
   acme: {
@@ -100,10 +100,10 @@ const buildLayer = (state: Ref.Ref<MockState>) =>
 const writeCacheText = (text: string, mtimeMs?: number) =>
   Effect.promise(async () => {
     await mkdir(Global.Path.cache, { recursive: true })
-    await writeFile(cacheFile, text)
+    await writeFile(cacheFile(), text)
     if (mtimeMs !== undefined) {
       const t = mtimeMs / 1000
-      await utimes(cacheFile, t, t)
+      await utimes(cacheFile(), t, t)
     }
   })
 
@@ -113,11 +113,11 @@ const provided = <A, E>(state: Ref.Ref<MockState>, eff: Effect.Effect<A, E, Mode
   eff.pipe(Effect.provide(buildLayer(state)))
 
 beforeEach(async () => {
-  await rm(cacheFile, { force: true })
+  await rm(cacheFile(), { force: true })
 })
 
 afterAll(async () => {
-  await rm(cacheFile, { force: true })
+  await rm(cacheFile(), { force: true })
 })
 
 const initialState: MockState = {
@@ -170,7 +170,7 @@ describe("ModelsDev Service", () => {
           }),
       )
       expect(result).toEqual(fixture2)
-      expect(yield* Effect.promise(() => readFile(cacheFile, "utf8"))).toBe(JSON.stringify(fixture2))
+      expect(yield* Effect.promise(() => readFile(cacheFile(), "utf8"))).toBe(JSON.stringify(fixture2))
       const final = yield* Ref.get(state)
       expect(final.calls.length).toBe(1)
     }),
