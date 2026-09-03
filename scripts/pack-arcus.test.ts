@@ -14,6 +14,7 @@ describe("opencode arcus packaging & sync", () => {
     expect(pkg.scripts["validate:arcus"]).toBe("bash scripts/validate-arcus.sh")
     expect(pkg.scripts["sign:arcus"]).toBe("bash scripts/sign-arcus.sh")
     expect(pkg.scripts["migrate:arcus"]).toBe("bash scripts/migrate-arcus.sh")
+    expect(pkg.scripts["arcus:pipeline"]).toBe("bash scripts/arcus-pipeline.sh")
   })
 
   it("ships executable scripts for Arcus v2 pipeline", () => {
@@ -22,6 +23,7 @@ describe("opencode arcus packaging & sync", () => {
     expect(existsSync(resolve(repoRoot, "scripts/validate-arcus.sh"))).toBe(true)
     expect(existsSync(resolve(repoRoot, "scripts/sign-arcus.sh"))).toBe(true)
     expect(existsSync(resolve(repoRoot, "scripts/migrate-arcus.sh"))).toBe(true)
+    expect(existsSync(resolve(repoRoot, "scripts/arcus-pipeline.sh"))).toBe(true)
   })
 
   it("produces a valid Arcus v2 release envelope and legacy v1 manifest", () => {

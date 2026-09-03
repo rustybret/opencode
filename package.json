@@ -33,6 +33,7 @@
     "validate:arcus": "bash scripts/validate-arcus.sh",
     "publish:arcus": "bash scripts/publish-arcus.sh",
     "migrate:arcus": "bash scripts/migrate-arcus.sh",
+    "arcus:pipeline": "bash scripts/arcus-pipeline.sh",
     "generate": "bun run script/generate.ts",
     "gate:phase2": "bun run script/ucs-phase2-gate-check.ts",
     "extract:g4-fixture": "bun run script/extract-g4-fixture.ts",
