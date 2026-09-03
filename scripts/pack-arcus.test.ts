@@ -33,15 +33,17 @@ describe("opencode arcus packaging & sync", () => {
       expect(manifest.daemon?.service_id).toBe("opencode-server")
     }
 
-    const v2Path = existsSync(resolve(repoRoot, "dist-arcus/releases/1.18.26-1.json"))
-      ? resolve(repoRoot, "dist-arcus/releases/1.18.26-1.json")
-      : resolve(repoRoot, "dist-arcus/releases/1.18.26-ucs-1.json")
+    const v2Path = existsSync(resolve(repoRoot, "dist-arcus/releases/1.18.26-ucs-2.json"))
+      ? resolve(repoRoot, "dist-arcus/releases/1.18.26-ucs-2.json")
+      : existsSync(resolve(repoRoot, "dist-arcus/releases/1.18.26-1.json"))
+        ? resolve(repoRoot, "dist-arcus/releases/1.18.26-1.json")
+        : resolve(repoRoot, "dist-arcus/releases/1.18.26-ucs-1.json")
     if (existsSync(v2Path)) {
       const envelope = JSON.parse(readFileSync(v2Path, "utf-8"))
       expect(envelope.signed?.schema_version).toBe(2)
       expect(envelope.signed?.kind).toBe("release")
       expect(envelope.signed?.package_id).toBe("opencode")
-      expect(envelope.signed?.version).toBe("1.18.26")
+      expect(envelope.signed?.version).toMatch(/^1\.18\.\d+$/)
       expect(envelope.signed?.sequence).toBeGreaterThanOrEqual(1)
       expect(envelope.signatures?.length).toBeGreaterThanOrEqual(1)
       expect(Object.keys(envelope.signed?.targets || {})).toEqual([

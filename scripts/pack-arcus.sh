@@ -150,7 +150,7 @@ fi
 VERSION=${VERSION#v}
 
 if [ -z "$RELEASE_ID" ]; then
-  RELEASE_ID="1.18.26-1"
+  RELEASE_ID="${VERSION}-ucs-1"
 fi
 [ -n "$RELEASE_ID" ] || die "could not derive a release_id"
 

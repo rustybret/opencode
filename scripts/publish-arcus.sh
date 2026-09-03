@@ -119,7 +119,7 @@ VERSION=${VERSION#v}
 TAG=${TAG:-v${VERSION}}
 
 if [ -z "$RELEASE_ID" ]; then
-  RELEASE_ID="1.18.26-1"
+  RELEASE_ID="${VERSION}-ucs-1"
 fi
 
 [ -n "$V2_ENVELOPE" ] || V2_ENVELOPE="${OUTPUT_DIR}/releases/${RELEASE_ID}.json"
