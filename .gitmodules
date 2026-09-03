@@ -1,3 +1,7 @@
 [submodule "submodules/pvrdrxtd"]
 	path = submodules/pvrdrxtd
 	url = https://github.com/rustybret/pvrdrxtd.git
+[submodule "submodules/arcus"]
+	path = submodules/arcus
+	url = https://github.com/rustybret/arcus.git
+	shallow = true

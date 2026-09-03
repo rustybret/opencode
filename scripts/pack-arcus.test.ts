@@ -7,6 +7,8 @@ describe("opencode arcus packaging & sync", () => {
 
   it("defines Arcus v2, fork-sync, and packaging command scripts in package.json", () => {
     const pkg = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf-8"))
+    expect(pkg.scripts["setup"]).toBe("bash setup.sh")
+    expect(pkg.scripts["setup:arcus"]).toBe("bash script/setup-arcus.sh")
     expect(pkg.scripts["fork-sync"]).toBe("script/fork-sync.sh")
     expect(pkg.scripts["package:arcus"]).toBe("bash scripts/pack-arcus.sh")
     expect(pkg.scripts["pack:arcus"]).toBe("bash scripts/pack-arcus.sh")
@@ -24,6 +26,11 @@ describe("opencode arcus packaging & sync", () => {
     expect(existsSync(resolve(repoRoot, "scripts/sign-arcus.sh"))).toBe(true)
     expect(existsSync(resolve(repoRoot, "scripts/migrate-arcus.sh"))).toBe(true)
     expect(existsSync(resolve(repoRoot, "scripts/arcus-pipeline.sh"))).toBe(true)
+    expect(existsSync(resolve(repoRoot, "script/setup-arcus.sh"))).toBe(true)
+    expect(existsSync(resolve(repoRoot, "setup.sh"))).toBe(true)
+    expect(existsSync(resolve(repoRoot, ".gitmodules"))).toBe(true)
+    const gitmodules = readFileSync(resolve(repoRoot, ".gitmodules"), "utf-8")
+    expect(gitmodules).toContain('submodule "submodules/arcus"')
   })
 
   it("produces a valid Arcus v2 release envelope and legacy v1 manifest", () => {
