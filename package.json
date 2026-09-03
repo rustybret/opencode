@@ -28,6 +28,7 @@
     "trigger:buildkit:release": "bun run script/trigger-buildkit.ts --release",
     "build:single": "bun run ./packages/opencode/script/build.ts --single",
     "build:all": "bun run ./packages/opencode/script/build.ts",
+    "clean:arcus": "rm -rf dist-arcus/ && mkdir -p dist-arcus/releases",
     "package:arcus": "bash scripts/pack-arcus.sh",
     "package:arcus:build": "bash scripts/pack-arcus.sh",
     "pack:arcus": "bash scripts/pack-arcus.sh",
