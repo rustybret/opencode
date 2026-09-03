@@ -4,7 +4,7 @@ import { KeyTable } from "@opencode-ai/console-core/schema/key.sql.js"
 import { WorkspaceTable } from "@opencode-ai/console-core/schema/workspace.sql.js"
 
 const paths: Record<string, string | undefined> = {
-  "GET /zen/v1/models": "/openai/v1/models",
+  "GET /zen/v1/models": "/v1/models",
   "POST /zen/v1/chat/completions": "/openai/v1/chat/completions",
   "POST /zen/v1/responses": "/openai/v1/responses",
   "POST /zen/v1/messages": "/anthropic/v1/messages",
@@ -51,5 +51,5 @@ export async function proxyInference(request: Request, clientIP?: string): Promi
   const requestID = request.headers.get("x-opencode-request-id") ?? request.headers.get("x-opencode-request")
   if (requestID) forwarded.headers.set("x-opencode-request-id", requestID)
 
-  return fetch(forwarded, { redirect: "error" })
+  return fetch(forwarded, { redirect: "manual" })
 }
