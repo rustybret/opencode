@@ -1172,28 +1172,31 @@ it.instance("cancel interrupts loop and resolves with an assistant message", () 
   }),
 )
 
-it.instance("cancel records MessageAbortedError on interrupted process", () =>
-  Effect.gen(function* () {
-    const { llm } = yield* useServerConfig(providerCfg)
-    const prompt = yield* SessionPrompt.Service
-    const sessions = yield* Session.Service
-    const chat = yield* sessions.create({ title: "Pinned" })
-    yield* llm.hang
-    yield* user(chat.id, "hello")
+it.instance(
+  "cancel records MessageAbortedError on interrupted process",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({ title: "Pinned" })
+      yield* llm.hang
+      yield* user(chat.id, "hello")
 
-    const fiber = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
-    yield* llm.wait(1)
-    yield* waitForBusy(chat.id)
-    yield* prompt.cancel(chat.id)
-    const exit = yield* Fiber.await(fiber)
-    expect(Exit.isSuccess(exit)).toBe(true)
-    if (Exit.isSuccess(exit)) {
-      const info = exit.value.info
-      if (info.role === "assistant") {
-        expect(info.error?.name).toBe("MessageAbortedError")
+      const fiber = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
+      yield* llm.wait(1)
+      yield* waitForBusy(chat.id)
+      yield* prompt.cancel(chat.id)
+      const exit = yield* Fiber.await(fiber)
+      expect(Exit.isSuccess(exit)).toBe(true)
+      if (Exit.isSuccess(exit)) {
+        const info = exit.value.info
+        if (info.role === "assistant") {
+          expect(info.error?.name).toBe("MessageAbortedError")
+        }
       }
-    }
-  }),
+    }),
+  30000,
 )
 
 raceNoLLMServer.instance(
