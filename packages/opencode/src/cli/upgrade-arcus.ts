@@ -28,6 +28,9 @@ export interface BlessedFleetManifest {
     opencode?: {
       blessed_version?: string
       manifest?: string
+      manifest_v2?: string
+      v2_release_id?: string
+      v2_sequence?: number
     }
   }
 }
@@ -73,6 +76,8 @@ export async function upgradeFromArcus(target?: string): Promise<boolean> {
 
   let manifest: ArcusManifest | null = null
   let versionTag = target
+  let resolvedUrl: string | null = null
+  let resolvedSha256: string | null = null
 
   if (arcusDir) {
     // Check blessed fleet manifest first if no specific target requested
@@ -85,15 +90,43 @@ export async function upgradeFromArcus(target?: string): Promise<boolean> {
           if (blessedHost?.blessed_version) {
             versionTag = blessedHost.blessed_version
           }
-          if (blessedHost?.manifest && existsSync(join(arcusDir, blessedHost.manifest))) {
+          if (blessedHost?.manifest_v2 && existsSync(join(arcusDir, blessedHost.manifest_v2))) {
+            const v2Doc: any = await Bun.file(join(arcusDir, blessedHost.manifest_v2)).json()
+            const v2Target = v2Doc.signed?.targets?.[canonicalTargetKey]
+            if (v2Target?.artifact) {
+              resolvedUrl = v2Target.artifact.url
+              resolvedSha256 = v2Target.artifact.archive_sha256
+            }
+          } else if (blessedHost?.manifest && existsSync(join(arcusDir, blessedHost.manifest))) {
             manifest = await Bun.file(join(arcusDir, blessedHost.manifest)).json()
           }
         } catch {}
       }
     }
 
+    // Try v2 release envelopes if versionTag specified
+    if (!resolvedUrl && versionTag) {
+      const v2Dir = join(arcusDir, "manifests/v2/opencode/releases")
+      if (existsSync(v2Dir)) {
+        const files = readdirSync(v2Dir).filter((f) => f.endsWith(".json"))
+        for (const file of files) {
+          if (file.includes(versionTag)) {
+            try {
+              const v2Doc: any = await Bun.file(join(v2Dir, file)).json()
+              const v2Target = v2Doc.signed?.targets?.[canonicalTargetKey]
+              if (v2Target?.artifact?.url) {
+                resolvedUrl = v2Target.artifact.url
+                resolvedSha256 = v2Target.artifact.archive_sha256
+                break
+              }
+            } catch {}
+          }
+        }
+      }
+    }
+
     // Try versioned manifest
-    if (!manifest && versionTag) {
+    if (!manifest && !resolvedUrl && versionTag) {
       const manifestFile = join(arcusDir, "manifests/opencode", `v${versionTag}.json`)
       if (existsSync(manifestFile)) {
         try {
@@ -111,7 +144,8 @@ export async function upgradeFromArcus(target?: string): Promise<boolean> {
     matrix?.[`opencode-${systemPlatform === "win32" ? "windows" : systemPlatform}-${arch}`]
 
   const asset = targetEntry?.asset
-  const downloadUrl =
+  let downloadUrl =
+    resolvedUrl ??
     asset?.url ??
     (versionTag
       ? `https://github.com/rustybret/opencode/releases/download/v${versionTag}/opencode-${canonicalTargetKey}.${systemPlatform === "win32" ? "zip" : "tar.gz"}`
@@ -132,7 +166,15 @@ export async function upgradeFromArcus(target?: string): Promise<boolean> {
     mkdirSync(tmpDir, { recursive: true })
 
     // 3. Download asset
-    const res = await fetch(downloadUrl)
+    let res = await fetch(downloadUrl)
+    if (!res.ok && versionTag) {
+      const ghFallback = `https://github.com/rustybret/opencode/releases/download/v${versionTag}/opencode-${versionTag}-${canonicalTargetKey}.tar.zst`
+      const ghRes = await fetch(ghFallback)
+      if (ghRes.ok) {
+        res = ghRes
+        downloadUrl = ghFallback
+      }
+    }
     if (!res.ok) {
       rmSync(tmpDir, { recursive: true, force: true })
       return false
@@ -141,10 +183,11 @@ export async function upgradeFromArcus(target?: string): Promise<boolean> {
     const buffer = await res.arrayBuffer()
 
     // Verify SHA256 if declared in manifest
-    if (asset?.sha256 && !asset.sha256.toUpperCase().includes("PENDING")) {
+    const targetHash = resolvedSha256 ?? asset?.sha256
+    if (targetHash && !targetHash.toUpperCase().includes("PENDING")) {
       const actualHash = sha256Buffer(buffer)
-      if (actualHash.toLowerCase() !== asset.sha256.toLowerCase()) {
-        console.error(`Arcus binary SHA256 mismatch (expected ${asset.sha256}, got ${actualHash})`)
+      if (actualHash.toLowerCase() !== targetHash.toLowerCase()) {
+        console.error(`Arcus binary SHA256 mismatch (expected ${targetHash}, got ${actualHash})`)
         rmSync(tmpDir, { recursive: true, force: true })
         return false
       }
@@ -155,17 +198,20 @@ export async function upgradeFromArcus(target?: string): Promise<boolean> {
     const isTar =
       downloadUrl.endsWith(".tar.gz") ||
       downloadUrl.endsWith(".tgz") ||
+      downloadUrl.endsWith(".tar.zst") ||
       asset?.filename?.endsWith(".tar.gz") ||
-      asset?.filename?.endsWith(".tgz")
+      asset?.filename?.endsWith(".tgz") ||
+      asset?.filename?.endsWith(".tar.zst")
 
     if (isZip || isTar) {
-      const archivePath = join(tmpDir, isZip ? "package.zip" : "package.tar.gz")
+      const archiveExt = isZip ? "package.zip" : downloadUrl.endsWith(".tar.zst") ? "package.tar.zst" : "package.tar.gz"
+      const archivePath = join(tmpDir, archiveExt)
       await Bun.write(archivePath, buffer)
 
       if (isZip) {
         await $`unzip -q -o ${archivePath} -d ${tmpDir}`.quiet()
       } else {
-        await $`tar -xzf ${archivePath} -C ${tmpDir}`.quiet()
+        await $`tar -xf ${archivePath} -C ${tmpDir}`.quiet()
       }
       unlinkSync(archivePath)
     } else {
