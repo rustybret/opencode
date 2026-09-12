@@ -165,4 +165,18 @@ describe("session.system", () => {
       )
     }),
   )
+
+  it.instance("environment output includes working directory and model info", () =>
+    Effect.gen(function* () {
+      const prompt = yield* SystemPrompt.Service
+      const output = yield* prompt.environment({
+        providerID: "test-provider",
+        api: { id: "test-model" },
+      } as Provider.Model)
+
+      expect(output.length).toBeGreaterThan(0)
+      expect(output[0]).toContain("You are powered by the model named test-model")
+      expect(output[0]).toContain("Working directory:")
+    }),
+  )
 })

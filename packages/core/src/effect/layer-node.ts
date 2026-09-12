@@ -85,6 +85,14 @@ export function make<
 >(
   input: MakeInput<Implementation, Items, T>,
 ): Node<Layer.Success<Implementation>, Layer.Error<Implementation> | Error<Items[number]>, T> {
+  for (let i = 0; i < input.deps.length; i++) {
+    if (!input.deps[i]) {
+      const name = input.service !== undefined ? input.service.key : input.name
+      throw new Error(
+        `LayerNode.make for "${name}" received undefined dependency at index ${i}. This usually indicates a circular module import.`,
+      )
+    }
+  }
   return {
     kind: "layer",
     name: input.service !== undefined ? input.service.key : input.name,
@@ -108,6 +116,13 @@ export function unbound<R, Shape, const T extends Tag>(service: Context.Key<R, S
 export function group<const Items extends readonly AnyNode[]>(
   dependencies: Items,
 ): Node<Output<Items[number]>, Error<Items[number]>, NodeTag<Items[number]>> {
+  for (let i = 0; i < dependencies.length; i++) {
+    if (!dependencies[i]) {
+      throw new Error(
+        `LayerNode.group received undefined dependency at index ${i}. This usually indicates a circular module import.`,
+      )
+    }
+  }
   return { kind: "group", name: "group", dependencies }
 }
 
@@ -182,10 +197,13 @@ function walk<Result>(
   const stack: AnyNode[] = []
 
   const recur = (node: AnyNode): Result => {
+    if (!node) {
+      const parentChain = stack.map((item) => item?.name || item?.kind || "unknown").join(" -> ")
+      throw new Error(`LayerNode.walk encountered undefined dependency in: ${parentChain}`)
+    }
     const target = options.resolve?.(node) ?? node
     const cached = cache.get(target)
     if (cached !== undefined || cache.has(target)) return cached!
-
     if (options.detectCycles !== false && visiting.has(target)) {
       const start = stack.indexOf(target)
       throw new Error(
@@ -238,7 +256,7 @@ export function hoist<A, E, T extends Tag, const Items extends Replacements = re
       }
       return { ...node, dependencies: node.dependencies.map(context.visit) }
     },
-    { resolve: (node) => replacementMap.get(node.name) ?? node },
+    { resolve: (node) => (node ? replacementMap.get(node.name) ?? node : node) },
   )
 
   return {
@@ -264,7 +282,7 @@ export function compile<A, E, const Items extends Replacements = readonly []>(
           ? implementation
           : implementation.pipe(Layer.provide(dependencies as [RuntimeLayer, ...RuntimeLayer[]]))
       },
-      { cache, resolve: (node) => replacementMap.get(node.name) ?? node },
+      { cache, resolve: (node) => (node ? replacementMap.get(node.name) ?? node : node) },
     )
   const layers = flatten(root).map((node) => compileNode(node))
   const layer = layers.reduce<RuntimeLayer>((result, layer) => layer.pipe(Layer.provideMerge(result)), Layer.empty)
@@ -290,6 +308,10 @@ function rewriteReplacementDependencies(root: AnyNode, replacements: ReadonlyMap
   const stack: AnyNode[] = []
 
   const recur = (node: AnyNode, isRoot = false): AnyNode => {
+    if (!node) {
+      const parentChain = stack.map((item) => item?.name || item?.kind || "unknown").join(" -> ")
+      throw new Error(`LayerNode.rewriteReplacementDependencies encountered undefined dependency in: ${parentChain}`)
+    }
     const target = isRoot ? node : (replacements.get(node.name) ?? node)
     const cached = cache.get(target)
     if (cached !== undefined || cache.has(target)) return cached!

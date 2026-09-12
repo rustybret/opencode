@@ -258,4 +258,20 @@ describe("layer node", () => {
       dependencies: [],
     })
   })
+
+  test("rejects undefined dependencies in make", () => {
+    expect(() =>
+      LayerNode.make({
+        name: "test-broken-node",
+        layer: Layer.empty,
+        deps: [undefined as any],
+      }),
+    ).toThrow('LayerNode.make for "test-broken-node" received undefined dependency at index 0')
+  })
+
+  test("rejects undefined dependencies in group", () => {
+    expect(() => LayerNode.group([undefined as any])).toThrow(
+      "LayerNode.group received undefined dependency at index 0",
+    )
+  })
 })
