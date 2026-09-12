@@ -63,7 +63,9 @@ export async function upgradeFromArcus(target?: string): Promise<boolean> {
     join(home, "submodules/arcus"),
     join(home, ".config/opencode/arcus"),
     join(process.cwd(), "submodules/arcus"),
+    join(process.cwd(), "../../submodules/arcus"),
     join(process.cwd(), "../arcus"),
+    "/Volumes/Topper2TB/Git/arcus",
   ]
 
   let arcusDir = ""
