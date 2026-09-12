@@ -310,4 +310,16 @@ describe("SessionPrompt input schemas", () => {
     const input: unknown = expected
     expect(decode(input)).toEqual(expected)
   })
+
+  test("CommandInput accepts omitted arguments", () => {
+    const decode = decodeUnknown(SessionPrompt.CommandInput)
+    const input = {
+      sessionID,
+      command: "ctx-status",
+    }
+    expect(decode(input)).toEqual({
+      sessionID,
+      command: "ctx-status",
+    })
+  })
 })

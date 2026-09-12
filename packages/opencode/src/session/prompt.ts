@@ -1369,7 +1369,8 @@ const layer = Layer.effect(
       }
       const agentName = cmd.agent ?? input.agent
 
-      const raw = input.arguments.match(argsRegex) ?? []
+      const commandArgs = input.arguments ?? ""
+      const raw = commandArgs.match(argsRegex) ?? []
       const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
       const templateCommand = yield* Effect.promise(async () => cmd.template)
 
@@ -1388,10 +1389,10 @@ const layer = Layer.effect(
         return args[argIndex]
       })
       const usesArgumentsPlaceholder = templateCommand.includes("$ARGUMENTS")
-      let template = withArgs.replaceAll("$ARGUMENTS", input.arguments)
+      let template = withArgs.replaceAll("$ARGUMENTS", commandArgs)
 
-      if (placeholders.length === 0 && !usesArgumentsPlaceholder && input.arguments.trim()) {
-        template = template + "\n\n" + input.arguments
+      if (placeholders.length === 0 && !usesArgumentsPlaceholder && commandArgs.trim()) {
+        template = template + "\n\n" + commandArgs
       }
 
       const shellMatches = ConfigMarkdown.shell(template)
@@ -1459,7 +1460,7 @@ const layer = Layer.effect(
 
       yield* plugin.trigger(
         "command.execute.before",
-        { command: input.command, sessionID: input.sessionID, arguments: input.arguments },
+        { command: input.command, sessionID: input.sessionID, arguments: commandArgs },
         { parts },
       )
 
@@ -1474,7 +1475,7 @@ const layer = Layer.effect(
       yield* events.publish(Command.Event.Executed, {
         name: input.command,
         sessionID: input.sessionID,
-        arguments: input.arguments,
+        arguments: commandArgs,
         messageID: result.info.id,
       })
       return result
@@ -1538,7 +1539,7 @@ export const CommandInput = Schema.Struct({
   sessionID: SessionID,
   agent: Schema.optional(Schema.String),
   model: Schema.optional(Schema.String),
-  arguments: Schema.String,
+  arguments: Schema.optional(Schema.String),
   command: Schema.String,
   variant: Schema.optional(Schema.String),
   // Inlined (no identifier annotation) to keep the original SDK output — the
