@@ -93,3 +93,8 @@ keep-deleted: packages/opencode/script/publish.ts
 
 # --- Regenerable lockfile: checkout upstream version and regenerate with bun install
 regenerate: bun.lock
+
+# --- Package manifests: 3-way semantic merge preserving upstream package updates + fork customizations
+merge-package-json: package.json
+merge-package-json: packages/*/package.json
+

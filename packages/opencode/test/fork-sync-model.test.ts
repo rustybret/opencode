@@ -163,4 +163,10 @@ describe("#given the fork sync model", () => {
     expect(script).toContain("ecosystem_for")
     expect(script).toContain("regenerate_targets")
   })
+
+  test("script/fork-sync.sh auto-resolves package.json conflicts via fork-sync-merge-package-json.ts", () => {
+    const script = readFileSync(SCRIPT, "utf8")
+    expect(script).toContain("fork-sync-merge-package-json.ts")
+    expect(existsSync(join(REPO_ROOT, "script/fork-sync-merge-package-json.ts"))).toBe(true)
+  })
 })

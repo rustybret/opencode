@@ -48,7 +48,11 @@ if git rev-parse -q --verify REBASE_HEAD >/dev/null 2>&1; then
   echo "error: a rebase is in progress. The fork model is merge-only: abort or finish it first." >&2
   exit 2
 fi
-if [[ -n "$(git status --porcelain)" ]]; then
+MERGE_IN_PROGRESS=0
+if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+  MERGE_IN_PROGRESS=1
+fi
+if [[ "$MERGE_IN_PROGRESS" != "1" && -n "$(git status --porcelain)" ]]; then
   echo "error: working tree is not clean. Commit or stash before syncing." >&2
   exit 2
 fi
@@ -75,14 +79,16 @@ matches_any() {
 KEEP_DELETED=()
 TAKE_THEIRS=()
 REGENERATE=()
+MERGE_PACKAGE_JSON=()
 while IFS= read -r line || [[ -n "$line" ]]; do
   line="${line%%#*}"
   line="$(trim "$line")"
   [[ -z "$line" ]] && continue
   case "$line" in
-    keep-deleted:*) KEEP_DELETED+=("$(trim "${line#keep-deleted:}")") ;;
-    take-theirs:*)  TAKE_THEIRS+=("$(trim "${line#take-theirs:}")") ;;
-    regenerate:*)   REGENERATE+=("$(trim "${line#regenerate:}")") ;;
+    keep-deleted:*)       KEEP_DELETED+=("$(trim "${line#keep-deleted:}")") ;;
+    take-theirs:*)        TAKE_THEIRS+=("$(trim "${line#take-theirs:}")") ;;
+    regenerate:*)         REGENERATE+=("$(trim "${line#regenerate:}")") ;;
+    merge-package-json:*) MERGE_PACKAGE_JSON+=("$(trim "${line#merge-package-json:}")") ;;
     *) echo "warning: unrecognized manifest line: $line" >&2 ;;
   esac
 done < "$EXCLUSIONS"
@@ -95,6 +101,9 @@ matches_take_theirs() {
 }
 matches_regenerate() {
   matches_any "$1" "${REGENERATE[@]}"
+}
+matches_merge_package_json() {
+  matches_any "$1" "${MERGE_PACKAGE_JSON[@]}"
 }
 
 ecosystem_for() {
@@ -113,7 +122,13 @@ ecosystem_for() {
 
 regenerate_targets() {
   local target dir eco
+  local -a unique_targets=()
   for target in "$@"; do
+    if ! matches_any "$target" "${unique_targets[@]}"; then
+      unique_targets+=("$target")
+    fi
+  done
+  for target in "${unique_targets[@]}"; do
     dir="$(dirname "$target")"
     eco="$(ecosystem_for "$target")" || return 1
     case "$eco" in
@@ -158,11 +173,49 @@ if [[ "$NO_PUSH" != "1" ]]; then
 fi
 
 # --- 3+4. bring fork/local up to date -------------------------------------------
-echo "== merge $MIRROR_BRANCH into $LOCAL_BRANCH =="
 git checkout -q "$LOCAL_BRANCH"
 PRE_MERGE_HEAD="$(git rev-parse HEAD)"
 
-if git merge --ff-only "$MIRROR_BRANCH" >/dev/null 2>&1; then
+if [[ "$MERGE_IN_PROGRESS" == "1" ]]; then
+  echo "== resuming in-progress merge of $(git rev-parse --short MERGE_HEAD) into $LOCAL_BRANCH =="
+  echo "== auto-resolving known conflict classes =="
+  REGENERATE_TARGETS=()
+  for f in $(git diff --name-only --diff-filter=U); do
+    if ! git cat-file -e ":2:$f" 2>/dev/null; then
+      # deleted by us (no stage-2 blob), modified by them
+      if matches_keep_deleted "$f"; then
+        git rm -f --quiet "$f"
+        echo "  removed (keep-deleted): $f"
+      fi
+    elif matches_regenerate "$f"; then
+      git checkout --theirs --quiet -- "$f"
+      git add "$f"
+      echo "  took theirs for regeneration: $f"
+      REGENERATE_TARGETS+=("$f")
+    elif matches_take_theirs "$f"; then
+      git checkout --theirs --quiet -- "$f"
+      git add "$f"
+      echo "  took theirs (regenerable bundle): $f"
+    elif matches_merge_package_json "$f" || [[ "$(basename "$f")" == "package.json" ]]; then
+      echo "  merging package.json with fork policy: $f"
+      bun run "$ROOT/script/fork-sync-merge-package-json.ts" "$f"
+      git add "$f"
+      REGENERATE_TARGETS+=("bun.lock")
+    fi
+  done
+  if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+    echo "error: unresolved conflicts remain (not covered by the manifest):" >&2
+    git status --short | grep -E '^(UU|DU|UD|AA|DD|AU|UA)' >&2 || true
+    echo "resolve them manually, then finish with:" >&2
+    echo "  git add <resolved-files> && git commit --no-verify" >&2
+    echo "then push $LOCAL_BRANCH:  git push --no-verify origin $LOCAL_BRANCH" >&2
+    exit 1
+  fi
+  if [[ ${#REGENERATE_TARGETS[@]} -gt 0 ]]; then
+    regenerate_targets "${REGENERATE_TARGETS[@]}"
+  fi
+  git commit --no-verify -m "merge: sync $REMOTE/$BRANCH ($(git rev-parse --short MERGE_HEAD)) into $LOCAL_BRANCH"
+elif git merge --ff-only "$MIRROR_BRANCH" >/dev/null 2>&1; then
   if [[ "$(git rev-parse HEAD)" == "$(git rev-parse "$PRE_MERGE_HEAD")" ]]; then
     echo "$LOCAL_BRANCH already up to date with $MIRROR_BRANCH"
   else
@@ -189,6 +242,11 @@ else
         git checkout --theirs --quiet -- "$f"
         git add "$f"
         echo "  took theirs (regenerable bundle): $f"
+      elif matches_merge_package_json "$f" || [[ "$(basename "$f")" == "package.json" ]]; then
+        echo "  merging package.json with fork policy: $f"
+        bun run "$ROOT/script/fork-sync-merge-package-json.ts" "$f"
+        git add "$f"
+        REGENERATE_TARGETS+=("bun.lock")
       fi
     done
     if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
