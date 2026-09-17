@@ -39,6 +39,15 @@ The canonical distribution pipeline for OpenCode native binaries is fully automa
 
 *Note: The legacy local macOS launchd job at `~/opencode-release-watch/` has been disabled and deprecated in favor of this hosted pipeline. `~/opencode-release-watch/` is retained only as an offline emergency fallback for manual testing.*
 
+### Arcus Fleet Governance & Packaging Standard (Archetype A: Upstream Fork)
+
+OpenCode follows the Arcus Archetype A (Upstream Fork) packaging standard for fleet governance and distribution:
+
+- **Package Identity**: Declared in the root `arcus.json` manifest with `package_id` `"opencode"`, `software_type` `"cli"`, binary `"opencode"`, and format `"tar.zst"`.
+- **Versioning**: The repository's `package.json` files mirror upstream plain SemVer (`<upstream_semver>`). Arcus release manifests use `<upstream_semver>-<sequence>`, where `<sequence>` is an integer incremented on every fork build or packaging pass.
+- **Changelog Convention**: Partition notes into `[Upstream Changes]` and `[Arcus/Internal Modifications]`.
+- **Executable Bits**: Enforce `0755` / `0o111` across all 5 canonical targets (`darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `win32-x64`).
+
 ### Deployment policy: snapshots disabled by default
 
 OpenCode deployments of this fork must set `"snapshot": false` in their `opencode.json` by default. The snapshot feature (`packages/core/src/v1/config/config.ts` `snapshot` key, honored in `packages/opencode/src/snapshot/index.ts`) creates per-instance git-store folders under the OS temp/cache dirs — measured >1GB per instance during heavy runs, filling the boot drive. Verified fix 2026-08-09: with snapshots disabled, the full test suite ran with zero folders created. Enabling snapshot tracking is opt-in and should be a deliberate, documented choice (undo/revert history trade-off).

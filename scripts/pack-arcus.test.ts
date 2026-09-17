@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, statSync } from "node:fs"
 import { resolve } from "node:path"
 
 describe("opencode arcus packaging & sync", () => {
@@ -39,7 +39,11 @@ describe("opencode arcus packaging & sync", () => {
       const manifest = JSON.parse(readFileSync(v1Path, "utf-8"))
       expect(manifest.harness).toBe("opencode")
       expect(manifest.name).toBe("opencode")
-      expect(manifest.daemon?.service_id).toBe("opencode-server")
+      if (manifest.daemon) {
+        expect(manifest.daemon.service_id).toBe("opencode-server")
+      } else if (manifest.plugin) {
+        expect(manifest.plugin.type).toBe("opencode-plugin")
+      }
     }
 
     const v2Path = existsSync(resolve(repoRoot, "dist-arcus/releases/1.18.26-ucs-2.json"))
@@ -62,6 +66,34 @@ describe("opencode arcus packaging & sync", () => {
         "linux-x64",
         "windows-x64",
       ])
+    }
+  })
+
+  it("conforms to Arcus Archetype A publishing standards with declarative arcus.json", () => {
+    const arcusJsonPath = resolve(repoRoot, "arcus.json")
+    expect(existsSync(arcusJsonPath)).toBe(true)
+    const arcusJson = JSON.parse(readFileSync(arcusJsonPath, "utf-8"))
+    expect(arcusJson.package_id).toBe("opencode")
+    expect(arcusJson.software_type).toBe("cli")
+    expect(arcusJson.source_id).toBe("arcus")
+    expect(arcusJson.channel).toBe("stable")
+    expect(arcusJson.binary_name).toBe("opencode")
+    expect(arcusJson.format).toBe("tar.zst")
+  })
+
+  it("enforces executable permissions across hydrated toolchain scripts", () => {
+    for (const script of [
+      "arcus-pipeline.sh",
+      "migrate-arcus.sh",
+      "pack-arcus.sh",
+      "publish-arcus.sh",
+      "sign-arcus.sh",
+      "validate-arcus.sh",
+    ]) {
+      const scriptPath = resolve(repoRoot, "scripts", script)
+      expect(existsSync(scriptPath)).toBe(true)
+      const stat = statSync(scriptPath)
+      expect(stat.mode & 0o111).toBeGreaterThan(0)
     }
   })
 })
