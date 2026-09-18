@@ -1972,7 +1972,7 @@ const layer = Layer.effect(
       }
 
       const priority = providerID.startsWith("opencode")
-        ? ["gpt-nano"]
+        ? smallModelFamilyPriority
         : providerID.startsWith("github-copilot")
           ? ["gpt-mini", ...smallModelFamilyPriority]
           : smallModelFamilyPriority
