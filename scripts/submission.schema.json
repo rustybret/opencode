@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://arcus.rustybret.com/schemas/arcus-submission.schema.json",
+  "title": "ArcusSubmissionEnvelope",
+  "description": "Metadata descriptor for an Arcus release submission bundle.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "package_id",
+    "release_id",
+    "version",
+    "sequence",
+    "created_at",
+    "toolchain_version",
+    "publisher_key_id"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [1],
+      "description": "Schema version of the submission envelope format."
+    },
+    "package_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 32,
+      "description": "Package identifier in the Arcus catalog."
+    },
+    "release_id": {
+      "type": "string",
+      "description": "Unique release identifier."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the release."
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic anti-rollback publisher sequence."
+    },
+    "sequence_source": {
+      "type": "string",
+      "enum": ["gateway", "local", "explicit"],
+      "description": "Authority used to allocate the sequence."
+    },
+    "observed_max_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Highest sequence observed during allocation."
+    },
+    "index_sha256_observed": {
+      "type": "string",
+      "description": "SHA256 digest of the index envelope observed at allocation time."
+    },
+    "artifact_tag": {
+      "type": "string",
+      "description": "Git tag for release artifacts."
+    },
+    "github_repo": {
+      "type": "string",
+      "description": "GitHub repository for release distribution."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 timestamp when the bundle was emitted."
+    },
+    "toolchain_version": {
+      "type": "string",
+      "description": "Version of the publisher toolchain that generated the bundle."
+    },
+    "publisher_key_id": {
+      "type": "string",
+      "description": "Hex-encoded Ed25519 public key ID of the signing authority."
+    }
+  },
+  "additionalProperties": false
+}

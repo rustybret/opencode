@@ -28,9 +28,17 @@ describe("opencode arcus packaging & sync", () => {
     expect(existsSync(resolve(repoRoot, "scripts/arcus-pipeline.sh"))).toBe(true)
     expect(existsSync(resolve(repoRoot, "script/setup-arcus.sh"))).toBe(true)
     expect(existsSync(resolve(repoRoot, "setup.sh"))).toBe(true)
-    expect(existsSync(resolve(repoRoot, ".gitmodules"))).toBe(true)
-    const gitmodules = readFileSync(resolve(repoRoot, ".gitmodules"), "utf-8")
-    expect(gitmodules).toContain('submodule "submodules/arcus"')
+    expect(existsSync(resolve(repoRoot, "scripts/arcus-toolchain.json"))).toBe(true)
+    const toolchain = JSON.parse(readFileSync(resolve(repoRoot, "scripts/arcus-toolchain.json"), "utf-8"))
+    expect(toolchain.schema).toBe("arcus/publisher-toolchain@1")
+    expect(toolchain.toolchain_version).toBe("0.4.0")
+
+    // Asserts repository is decoupled from submodules/arcus git submodule
+    const gitmodulesPath = resolve(repoRoot, ".gitmodules")
+    if (existsSync(gitmodulesPath)) {
+      const gitmodules = readFileSync(gitmodulesPath, "utf-8")
+      expect(gitmodules).not.toContain('submodule "submodules/arcus"')
+    }
   })
 
   it("produces a valid Arcus v2 release envelope and legacy v1 manifest", () => {
