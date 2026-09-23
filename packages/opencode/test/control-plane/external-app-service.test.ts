@@ -20,8 +20,7 @@ function makeFake(appId: string) {
     name: `${appId} fake`,
     connect: () => Effect.succeed(state.snapshot),
     status: () => Effect.succeed(state.snapshot),
-    capabilities: () =>
-      Effect.succeed({ version: "1.0.0", actions: [], domainTags: [], checkpointSupported: false }),
+    capabilities: () => Effect.succeed({ version: "1.0.0", actions: [], domainTags: [], checkpointSupported: false }),
     checkpoint: (label) => Effect.succeed({ _tag: "Unsupported" as const, reason: `no checkpoint for ${label}` }),
     blockedOnHuman: () => Effect.succeed(Option.none()),
     streamProgress: () => () => {},
@@ -42,7 +41,7 @@ describe("control-plane.external-app.service", () => {
 
       expect((yield* apps.get("unity"))?.adapter).toBe(unity.adapter)
       expect((yield* apps.get("unity"))?.snapshot).toBeUndefined()
-      expect((yield* apps.get("nope"))).toBeUndefined()
+      expect(yield* apps.get("nope")).toBeUndefined()
       expect((yield* apps.list()).map((entry) => entry.adapter.appId).sort()).toEqual(["blender", "unity"])
     }),
   )

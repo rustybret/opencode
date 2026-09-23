@@ -11,7 +11,8 @@ import { Schema } from "effect"
  */
 export const UcsApiPrefix = "ucs"
 
-export const UcsRouteId = Schema.Literals(["ucs.topology",
+export const UcsRouteId = Schema.Literals([
+  "ucs.topology",
   "ucs.project",
   "ucs.work",
   "ucs.integration",
@@ -19,16 +20,19 @@ export const UcsRouteId = Schema.Literals(["ucs.topology",
   "ucs.evidence",
   "ucs.events",
   "ucs.capabilities",
-  "ucs.external-apps",])
+  "ucs.external-apps",
+])
 export type UcsRouteId = typeof UcsRouteId.Type
 
-export const UcsCommandId = Schema.Literals(["ucs.status",
+export const UcsCommandId = Schema.Literals([
+  "ucs.status",
   "ucs.sessions",
   "ucs.projects",
   "ucs.work",
   "ucs.integrations",
   "ucs.evidence",
-  "ucs.capabilities",])
+  "ucs.capabilities",
+])
 export type UcsCommandId = typeof UcsCommandId.Type
 
 /** HTTP path prefix for all namespaced UCS endpoints, e.g. /ucs/topology. */

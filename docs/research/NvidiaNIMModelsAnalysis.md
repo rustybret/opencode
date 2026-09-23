@@ -9,7 +9,7 @@
 
 ## 1. Naming / Slug Convention Equivalents (10 Models)
 
-build.nvidia.com replaces decimal dots (.) with underscores (_) in URL slugs for certain model versions. These refer to the same underlying models:
+build.nvidia.com replaces decimal dots (.) with underscores (\_) in URL slugs for certain model versions. These refer to the same underlying models:
 
 User Provided Slug build.nvidia.com Slug
 

@@ -7,7 +7,8 @@ import { Schema } from "effect"
  * against this manifest so surfaces can render feature-gated UI and the fork
  * can verify contract conformance (Phase 4 adapter conformance fixtures).
  */
-export const UcsCapabilityId = Schema.Literals(["session-topology",
+export const UcsCapabilityId = Schema.Literals([
+  "session-topology",
   "task-state",
   "event-stream",
   "multi-session",
@@ -19,7 +20,8 @@ export const UcsCapabilityId = Schema.Literals(["session-topology",
   "external-app",
   "skill-registry",
   "tool-registry",
-  "agent-registry",])
+  "agent-registry",
+])
 export type UcsCapabilityId = typeof UcsCapabilityId.Type
 
 export const UcsCapabilityStatus = Schema.Literals(["supported", "beta", "planned", "absent"])

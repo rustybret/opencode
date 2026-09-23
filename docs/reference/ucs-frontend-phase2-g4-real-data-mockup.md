@@ -3,7 +3,7 @@
 **Document Version:** 1.0.0  
 **Date:** 2026-08-11  
 **Status:** DRAFT FOR REVIEW  
-**Target Recipient:** `uc-studio`  
+**Target Recipient:** `uc-studio`
 
 ---
 
@@ -14,6 +14,7 @@ This document defines the Gate G4 High-Fidelity Real-Data Mockup for the User Co
 The mockup is populated using a real-world data snapshot extracted from the `opencode` database session and boulder state.
 
 ### 1.1 Real-Data Provenance Details
+
 - **Source Project ID:** `opencode-228cc625`
 - **Project Name:** `opencode`
 - **Worktree Path:** `/Volumes/Topper2TB/Git/opencode`
@@ -81,7 +82,9 @@ Below is the ASCII-formatted mockup representing the desktop layout at a 1280px 
 ## 3. Primary View Data Rendering
 
 ### 3.1 Session Topology Tree (View A)
+
 The Session Topology Tree renders the hierarchical relationship between the primary session and its spawned subagents.
+
 - **Primary Session Node:**
   - **ID:** `ses_00baeccdcffeURe272XGvKdRRv`
   - **Agent:** `plan`
@@ -110,7 +113,9 @@ The Session Topology Tree renders the hierarchical relationship between the prim
 - **Data Source Annotation:** `supported` (Served by `GET /ucs/topology`)
 
 ### 3.2 Live Event Stream (View B)
+
 The Live Event Stream displays real-time lifecycle events and state updates.
+
 - **Event 1:**
   - **Timestamp:** `2026-08-11T20:30:00Z`
   - **Type:** `session.created`
@@ -130,7 +135,9 @@ The Live Event Stream displays real-time lifecycle events and state updates.
 - **Data Source Annotation:** `supported` (Served by `GET /ucs/events` SSE)
 
 ### 3.3 Boulder State & Evidence Inspector (View C)
+
 The Boulder State & Evidence Inspector tracks the progress of the active plan and lists generated evidence files.
+
 - **Active Goal:** `Deliver Phase 2 Pre-Implementation Gates (G1-G4)`
 - **Active Step:** `Author Gate G1 (UI Design Mockup)`
 - **Progress:** `42.8%` (3 of 7 steps completed)
@@ -142,7 +149,9 @@ The Boulder State & Evidence Inspector tracks the progress of the active plan an
 - **Data Source Annotation:** `supported (beta)` (Served by `GET /ucs/work`)
 
 ### 3.4 Workspace Selector (View D)
+
 The Workspace Selector allows switching between registered projects.
+
 - **Active Project Name:** `opencode`
 - **Active Project ID:** `opencode-228cc625`
 - **Worktree Path:** `/Volumes/Topper2TB/Git/opencode`
@@ -153,7 +162,9 @@ The Workspace Selector allows switching between registered projects.
 ## 4. Side-Panel Widgets Data Rendering
 
 ### 4.1 External App Status Card (Widget 5)
+
 Displays the connection and compilation status of external engines.
+
 - **Adapter ID:** `unity-supermcp-01`
 - **Engine:** `unity`
 - **Name:** `Unity SuperMCP Bridge`
@@ -165,14 +176,18 @@ Displays the connection and compilation status of external engines.
 - **Data Source Annotation:** `supported` (Served by `GET /ucs/work` integrations block)
 
 ### 4.2 OAuth Quota Status Panel (Widget 1)
+
 Tracks token usage and quota ceilings for the three auth plugins.
+
 - **Anthropic:** 85% (e.g., 85,000 / 100,000 tokens)
 - **OpenAI:** 42% (e.g., 21,000 / 50,000 tokens)
 - **Gemini:** 12% (e.g., 2,400 / 20,000 tokens)
 - **Data Source Annotation:** `planned (Phase 2.5)` (Proposed endpoint `GET /ucs/quota`)
 
 ### 4.3 AFT Code Health Widget (Widget 2)
+
 Displays live status-bar metrics from the AFT tool.
+
 - **Errors (E):** 0
 - **Warnings (W):** 6
 - **Dead Code (D):** 696
@@ -182,7 +197,9 @@ Displays live status-bar metrics from the AFT tool.
 - **Data Source Annotation:** `planned (Phase 2.5)` (Proposed endpoint `GET /ucs/health`)
 
 ### 4.4 Cache Diagnostics & Prompt Bust Panel (Widget 3)
+
 Tracks prompt cache efficiency and cache-bust events.
+
 - **Hit Ratio:** 91.2%
 - **cache_read:** 1,146,194 tokens
 - **cache_write:** 101,639 tokens
@@ -190,7 +207,9 @@ Tracks prompt cache efficiency and cache-bust events.
 - **Data Source Annotation:** `planned (Phase 2.5)` (Proposed endpoint `GET /ucs/cache`)
 
 ### 4.5 AFT Live LSP Diagnostics Panel (Widget 4)
+
 Lists active language-server diagnostic messages.
+
 - **Active Warnings:** 6 warnings (e.g., unused imports, deprecated methods)
 - **Data Source Annotation:** `planned (Phase 2.5)` (Proposed endpoint `GET /ucs/diagnostics`)
 
@@ -200,29 +219,29 @@ Lists active language-server diagnostic messages.
 
 The following table maps each region of the mockup to its corresponding fixture keys and database tables.
 
-| UI Region / Component | Mockup Value | Fixture JSON Key | Database Table / Source | Capability Status |
-|---|---|---|---|---|
-| **Workspace Selector** | `opencode` | `project.name` | `project` | `supported` |
-| **Workspace Selector** | `/Volumes/Topper2TB/Git/opencode` | `project.worktree` | `project` | `supported` |
-| **Session Topology Tree** | `ses_00baeccdcffeURe272XGvKdRRv` | `primarySession.id` | `session` | `supported` |
-| **Session Topology Tree** | `plan` | `primarySession.agent` | `session` | `supported` |
-| **Session Topology Tree** | `running` | `primarySession.status` | `session` | `supported` |
-| **Session Topology Tree** | `ses_00baef906ffeg4vYjPvoLwlI3x` | `subagents[0].id` | `session` | `supported` |
-| **Session Topology Tree** | `Sisyphus-Junior` | `subagents[0].agent` | `session` | `supported` |
-| **Session Topology Tree** | `completed` | `subagents[0].status` | `session` | `supported` |
-| **Session Topology Tree** | `142,050` | Simulated total input tokens | `session_tokens` | `supported` |
-| **Session Topology Tree** | `118,400` | Simulated total cache read tokens | `session_tokens` | `supported` |
-| **Session Topology Tree** | `$0.0425` | `primarySession.tokens.totalCostUsd` | `session_tokens` | `supported` |
-| **Live Event Stream** | `session.created` | `eventsSample[0].type` | `session_event` | `supported` |
-| **Live Event Stream** | `2026-08-11T20:30:00Z` | `eventsSample[0].time` | `session_event` | `supported` |
-| **Boulder Inspector** | `Deliver Phase 2 Pre-Implementation Gates (G1-G4)` | `boulderState.activeGoal` | `boulder` | `supported (beta)` |
-| **Boulder Inspector** | `Author Gate G1 (UI Design Mockup)` | `boulderState.activeStep` | `boulder` | `supported (beta)` |
-| **Boulder Inspector** | `42.8%` | `boulderState.percentage` | `boulder` | `supported (beta)` |
-| **Boulder Inspector** | `.scratch/trellis/out/...` | `boulderState.evidenceFiles[0]` | `boulder_evidence` | `supported (beta)` |
-| **External App Card** | `unity-supermcp-01` | `integrations[0].id` | `integration` | `supported` |
-| **External App Card** | `connected` | `integrations[0].status` | `integration` | `supported` |
-| **External App Card** | `2022.3.20f1` | `integrations[0].details.editorVersion` | `integration` | `supported` |
-| **OAuth Quota Panel** | `Anthropic: 85%` | Simulated quota usage | `oauth_quota` | `planned (Phase 2.5)` |
-| **AFT Code Health** | `E: 0  W: 6  D: 696` | Simulated AFT metrics | `aft_health` | `planned (Phase 2.5)` |
-| **Cache Diagnostics** | `Hit Ratio: 91.2%` | Simulated cache metrics | `cache_diagnostics` | `planned (Phase 2.5)` |
-| **LSP Diagnostics** | `6 warnings` | Simulated LSP warnings | `lsp_diagnostics` | `planned (Phase 2.5)` |
+| UI Region / Component     | Mockup Value                                       | Fixture JSON Key                        | Database Table / Source | Capability Status     |
+| ------------------------- | -------------------------------------------------- | --------------------------------------- | ----------------------- | --------------------- |
+| **Workspace Selector**    | `opencode`                                         | `project.name`                          | `project`               | `supported`           |
+| **Workspace Selector**    | `/Volumes/Topper2TB/Git/opencode`                  | `project.worktree`                      | `project`               | `supported`           |
+| **Session Topology Tree** | `ses_00baeccdcffeURe272XGvKdRRv`                   | `primarySession.id`                     | `session`               | `supported`           |
+| **Session Topology Tree** | `plan`                                             | `primarySession.agent`                  | `session`               | `supported`           |
+| **Session Topology Tree** | `running`                                          | `primarySession.status`                 | `session`               | `supported`           |
+| **Session Topology Tree** | `ses_00baef906ffeg4vYjPvoLwlI3x`                   | `subagents[0].id`                       | `session`               | `supported`           |
+| **Session Topology Tree** | `Sisyphus-Junior`                                  | `subagents[0].agent`                    | `session`               | `supported`           |
+| **Session Topology Tree** | `completed`                                        | `subagents[0].status`                   | `session`               | `supported`           |
+| **Session Topology Tree** | `142,050`                                          | Simulated total input tokens            | `session_tokens`        | `supported`           |
+| **Session Topology Tree** | `118,400`                                          | Simulated total cache read tokens       | `session_tokens`        | `supported`           |
+| **Session Topology Tree** | `$0.0425`                                          | `primarySession.tokens.totalCostUsd`    | `session_tokens`        | `supported`           |
+| **Live Event Stream**     | `session.created`                                  | `eventsSample[0].type`                  | `session_event`         | `supported`           |
+| **Live Event Stream**     | `2026-08-11T20:30:00Z`                             | `eventsSample[0].time`                  | `session_event`         | `supported`           |
+| **Boulder Inspector**     | `Deliver Phase 2 Pre-Implementation Gates (G1-G4)` | `boulderState.activeGoal`               | `boulder`               | `supported (beta)`    |
+| **Boulder Inspector**     | `Author Gate G1 (UI Design Mockup)`                | `boulderState.activeStep`               | `boulder`               | `supported (beta)`    |
+| **Boulder Inspector**     | `42.8%`                                            | `boulderState.percentage`               | `boulder`               | `supported (beta)`    |
+| **Boulder Inspector**     | `.scratch/trellis/out/...`                         | `boulderState.evidenceFiles[0]`         | `boulder_evidence`      | `supported (beta)`    |
+| **External App Card**     | `unity-supermcp-01`                                | `integrations[0].id`                    | `integration`           | `supported`           |
+| **External App Card**     | `connected`                                        | `integrations[0].status`                | `integration`           | `supported`           |
+| **External App Card**     | `2022.3.20f1`                                      | `integrations[0].details.editorVersion` | `integration`           | `supported`           |
+| **OAuth Quota Panel**     | `Anthropic: 85%`                                   | Simulated quota usage                   | `oauth_quota`           | `planned (Phase 2.5)` |
+| **AFT Code Health**       | `E: 0  W: 6  D: 696`                               | Simulated AFT metrics                   | `aft_health`            | `planned (Phase 2.5)` |
+| **Cache Diagnostics**     | `Hit Ratio: 91.2%`                                 | Simulated cache metrics                 | `cache_diagnostics`     | `planned (Phase 2.5)` |
+| **LSP Diagnostics**       | `6 warnings`                                       | Simulated LSP warnings                  | `lsp_diagnostics`       | `planned (Phase 2.5)` |

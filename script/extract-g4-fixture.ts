@@ -13,12 +13,16 @@ if (!existsSync(dbPath)) {
 
 const db = new Database(dbPath, { readonly: true })
 
-const sessions = db.query(`
+const sessions = db
+  .query(
+    `
   SELECT id, title, directory, agent, model, time_created, time_updated, tokens_input, tokens_output, tokens_cache_read, tokens_cache_write, cost
   FROM session
   ORDER BY time_created DESC
   LIMIT 10
-`).all() as any[]
+`,
+  )
+  .all() as any[]
 
 const topSession = sessions[0]
 
@@ -28,7 +32,7 @@ const fixture = {
   project: {
     id: "opencode-228cc625",
     name: "opencode",
-    worktree: "/Volumes/Topper2TB/Git/opencode"
+    worktree: "/Volumes/Topper2TB/Git/opencode",
   },
   primarySession: {
     id: topSession.id,
@@ -44,8 +48,8 @@ const fixture = {
       outputTokens: topSession.tokens_output || 12450,
       cacheReadTokens: topSession.tokens_cache_read || 118400,
       cacheWriteTokens: topSession.tokens_cache_write || 23650,
-      totalCostUsd: topSession.cost || 0.0425
-    }
+      totalCostUsd: topSession.cost || 0.0425,
+    },
   },
   subagents: [
     {
@@ -62,8 +66,8 @@ const fixture = {
         outputTokens: 1200,
         cacheReadTokens: 16200,
         cacheWriteTokens: 2200,
-        totalCostUsd: 0.0058
-      }
+        totalCostUsd: 0.0058,
+      },
     },
     {
       id: "ses_00baefd74ffeXYyf8LOg737T6A",
@@ -79,8 +83,8 @@ const fixture = {
         outputTokens: 1450,
         cacheReadTokens: 17100,
         cacheWriteTokens: 2000,
-        totalCostUsd: 0.0062
-      }
+        totalCostUsd: 0.0062,
+      },
     },
     {
       id: "ses_00baeccdcffeURe272XGvKdRRv",
@@ -96,9 +100,9 @@ const fixture = {
         outputTokens: 4800,
         cacheReadTokens: 76200,
         cacheWriteTokens: 8300,
-        totalCostUsd: 0.0245
-      }
-    }
+        totalCostUsd: 0.0245,
+      },
+    },
   ],
   boulderState: {
     activeGoal: "Deliver Phase 2 Pre-Implementation Gates (G1-G4)",
@@ -110,8 +114,8 @@ const fixture = {
       ".scratch/trellis/out/trellis_20260811T195242Z_s7_1.glb",
       "docs/reference/ucs-frontend-phase2-feedback-specification.md",
       "docs/reference/ucs-frontend-phase2-shared-glossary.md",
-      "script/ucs-phase2-gate-check.ts"
-    ]
+      "script/ucs-phase2-gate-check.ts",
+    ],
   },
   integrations: [
     {
@@ -123,16 +127,16 @@ const fixture = {
         editorVersion: "2022.3.20f1",
         scene: "Assets/Scenes/MainStage.unity",
         playmode: "stopped",
-        compilation: "clean"
-      }
-    }
+        compilation: "clean",
+      },
+    },
   ],
   eventsSample: [
     { type: "session.created", time: "2026-08-11T20:30:00Z", sessionId: topSession.id },
     { type: "task.started", time: "2026-08-11T20:31:00Z", subagentId: "ses_00baef906ffeg4vYjPvoLwlI3x" },
     { type: "task.completed", time: "2026-08-11T20:31:04Z", subagentId: "ses_00baef906ffeg4vYjPvoLwlI3x" },
-    { type: "boulder.updated", time: "2026-08-11T20:32:00Z", activeStep: "Author Gate G1 (UI Design Mockup)" }
-  ]
+    { type: "boulder.updated", time: "2026-08-11T20:32:00Z", activeStep: "Author Gate G1 (UI Design Mockup)" },
+  ],
 }
 
 const outputPath = join(import.meta.dir, "../docs/reference/data/ucs-phase2-g4-fixture.json")

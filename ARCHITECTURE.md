@@ -5,6 +5,7 @@
 **Overall:** Effect-Native Layered Monorepo with Event-Sourced Projections and Scoped Location Services
 
 **Key Characteristics:**
+
 - **Strict Unidirectional Dependency Graph:** Enforce runtime dependencies flowing from `Schema` to `Core` and `Protocol`, then from `Core` and `Protocol` to `Server`. `Client` runtime code depends on `Schema` and `Protocol` but never on `Core` or `Server`. `sdk-next` composes `Client`, `Core`, and `Server` in-memory.
 - **Typed Functional Core:** Use Effect (`effect`) primitives (`Effect`, `Layer`, `Context`, `Scope`, `Schema`, `Stream`) across business logic, lifecycle scopes, and resource acquisition.
 - **Dual-Scope Service Hierarchy:** Maintain process-global services (database, session store, execution coordinator, application tools) alongside per-workspace/worktree location-scoped services (`LocationServices` via `LayerMap` keyed by `Location.Ref`).
@@ -17,6 +18,7 @@
 ## Layers
 
 ### Schema Layer
+
 - **Purpose:** Define the authoritative canonical domain models, identifiers, and event shapes with runtime validation.
 - **Location:** `packages/schema/`
 - **Contains:** Effect Schema codecs (`Schema.Struct`, `Schema.TaggedErrorClass`), branded identifier factories (`Session.ID`, `Location.Ref`, `Project.ID`), durable event definitions (`durable-event-manifest.ts`).
@@ -24,6 +26,7 @@
 - **Used by:** `packages/protocol`, `packages/core`, `packages/server`, `packages/client`, `packages/llm`, `packages/opencode`, `packages/app`, `packages/tui`.
 
 ### Protocol Layer
+
 - **Purpose:** Define wire protocols, Effect `HttpApi` endpoint specifications, middleware contracts, and error schemas.
 - **Location:** `packages/protocol/`
 - **Contains:** Endpoint definitions (`packages/protocol/src/api.ts`), API group contracts (`packages/protocol/src/groups/`), wire errors (`packages/protocol/src/errors.ts`), middleware declarations (`packages/protocol/src/middleware/`).
@@ -31,6 +34,7 @@
 - **Used by:** `packages/server`, `packages/client`.
 
 ### Core Layer
+
 - **Purpose:** Execute core business logic, session orchestration, location-scoped service maps, tool registries, file system operations, and database persistence.
 - **Location:** `packages/core/`
 - **Contains:** Session state machine (`packages/core/src/session/`), location service lifecycle (`packages/core/src/location-services.ts`), SQLite database via Drizzle (`packages/core/src/database/database.ts`), permissions (`packages/core/src/permission.ts`), file watcher and search (`packages/core/src/filesystem/`), terminal PTY (`packages/core/src/pty.ts`), configuration (`packages/core/src/config.ts`).
@@ -38,6 +42,7 @@
 - **Used by:** `packages/server`, `packages/sdk-next`, `packages/opencode`, `packages/tui`.
 
 ### Server Layer
+
 - **Purpose:** Implement Effect `HttpApi` handlers, HTTP routing, Server-Sent Events (SSE), authentication, and WebSocket handling.
 - **Location:** `packages/server/`
 - **Contains:** Route implementations (`packages/server/src/routes.ts`), endpoint handlers (`packages/server/src/handlers/`), auth middleware (`packages/server/src/auth.ts`), CORS (`packages/server/src/cors.ts`), location resolution (`packages/server/src/location.ts`).
@@ -45,6 +50,7 @@
 - **Used by:** `packages/opencode`, `packages/sdk-next`.
 
 ### Client Layer
+
 - **Purpose:** Provide strongly typed API clients generated directly from the authoritative Effect `HttpApi`.
 - **Location:** `packages/client/`
 - **Contains:** Zero-Effect standard `fetch` client (`packages/client/src/index.ts`), Effect network client with `HttpClient` (`packages/client/src/effect.ts`), generated types and groups (`packages/client/src/generated/`).
@@ -52,6 +58,7 @@
 - **Used by:** `packages/app`, `packages/session-ui`, `packages/sdk-next`, external consumers.
 
 ### In-Process Host SDK (`sdk-next`)
+
 - **Purpose:** Provide an Effect-native, in-process OpenCode host executing the Server's HTTP router in memory with zero network I/O.
 - **Location:** `packages/sdk-next/`
 - **Contains:** Host builder and layer provider (`packages/sdk-next/src/index.ts`).
@@ -59,6 +66,7 @@
 - **Used by:** In-process integrations, unit and integration test harnesses.
 
 ### LLM Subsystem
+
 - **Purpose:** Provide schema-first, provider-neutral model invocation, automated prompt caching, and normalized streaming.
 - **Location:** `packages/llm/`
 - **Contains:** Client dispatcher (`packages/llm/src/index.ts`), route compilers (`packages/llm/src/route/index.ts`), provider adapters (`packages/llm/src/providers/`), wire protocols (`packages/llm/src/protocols/`).
@@ -66,6 +74,7 @@
 - **Used by:** `@opencode-ai/core`.
 
 ### Confinement Subsystem (`codemode`)
+
 - **Purpose:** Execute bounded JavaScript orchestration scripts directly over schema-described tool definitions without ambient node/process authorities.
 - **Location:** `packages/codemode/`
 - **Contains:** AST evaluator, tool tree caller, resource/timeout accountant (`packages/codemode/src/index.ts`).
@@ -73,6 +82,7 @@
 - **Used by:** `@opencode-ai/opencode`, `@opencode-ai/core`.
 
 ### User Interfaces & Applications
+
 - **Purpose:** Deliver interactive development interfaces across CLI, Terminal (TUI), Web, and Desktop.
 - **Location:**
   - CLI & Packaging: `packages/opencode/`
@@ -116,36 +126,43 @@
 ## Key Abstractions
 
 ### `Location.Ref` & `LocationServiceMap`
+
 - **Purpose:** Represents the filesystem and workspace boundary for an execution context. Caches and isolates location-specific services.
 - **Location:** `packages/core/src/location.ts`, `packages/core/src/location-services.ts`
 - **Pattern:** Scoped Dependency Injection container via `effect/LayerMap`.
 
 ### `SessionRunner`
+
 - **Purpose:** Coordinates provider turn cycles, input queue promotion, context epochs, tool execution fibers, and termination conditions.
 - **Location:** `packages/core/src/session/runner/index.ts`, `packages/core/src/session/runner/llm.ts`
 - **Pattern:** Finite State Machine / Orchestrator over functional collaborators.
 
 ### `Tool.Definition` & `ToolRegistry`
+
 - **Purpose:** Opaque, schema-validated executable tool definition. Separates host application tools from location-specific tool registrations.
 - **Location:** `packages/core/src/tool.ts`, `packages/core/src/tool/registry.ts`
 - **Pattern:** Layered Service Registry with scoped overrides (Location registrations override Process Application tools).
 
 ### `ContextEpochStore`
+
 - **Purpose:** Stores immutable prompt context baselines and diffs for prompt cache stability, tracking environment facts and instructions.
 - **Location:** `packages/core/src/session/context-epoch.ts`, `packages/core/src/system-context/index.ts`
 - **Pattern:** Snapshot / Delta versioning.
 
 ### `LLMClient` & `Route`
+
 - **Purpose:** Provider-agnostic interface translating canonical model requests into provider-specific payloads, streaming formats, and caching protocols.
 - **Location:** `packages/llm/src/index.ts`, `packages/llm/src/route/index.ts`
 - **Pattern:** Strategy / Adapter pattern implemented as pure functional Effect routes.
 
 ### `CodeMode`
+
 - **Purpose:** In-memory, AST-confined execution sandbox for model-generated JavaScript programs invoking schema-described tools.
 - **Location:** `packages/codemode/src/index.ts`
 - **Pattern:** Sandboxed Interpreter without `eval` or ambient capabilities.
 
 ### `HttpApiApp`
+
 - **Purpose:** Authoritative HTTP router and schema validation runtime mapping protocol definitions to endpoint implementations.
 - **Location:** `packages/server/src/api.ts`, `packages/server/src/routes.ts`
 - **Pattern:** Effect `HttpApi` declarative contract.
@@ -155,31 +172,37 @@
 ## Entry Points
 
 ### Standalone CLI
+
 - **Location:** `packages/opencode/src/index.ts`
 - **Triggers:** Command-line execution (`opencode [command]`).
 - **Responsibilities:** Parse CLI arguments via Yargs, initialize global flags and memory monitoring (`Heap.start()`), dispatch to subcommands (`serve`, `run`, `tui`, `agent`, `session`, `upgrade`, etc.).
 
 ### Headless API Server
+
 - **Location:** `packages/opencode/src/cli/cmd/serve.ts`, `packages/opencode/src/server/server.ts`
 - **Triggers:** `opencode serve` command.
 - **Responsibilities:** Start HTTP and WebSocket listeners, bind mDNS discovery, serve OpenAPI specs, route requests through `HttpApiApp`.
 
 ### Terminal UI (TUI)
+
 - **Location:** `packages/opencode/src/cli/cmd/tui.ts`, `packages/tui/src/index.tsx`
 - **Triggers:** Default `opencode` command in interactive terminal, or `opencode attach`.
 - **Responsibilities:** Launch SolidJS OpenTUI terminal application, manage keybindings, render interactive prompt and session stream.
 
 ### Web Application
+
 - **Location:** `packages/app/src/index.ts`
 - **Triggers:** Browser navigation to OpenCode web server or Vite dev server.
 - **Responsibilities:** SolidJS single-page application rendering workspace tabs, session diffs, message feeds, and file trees.
 
 ### Desktop Application
+
 - **Location:** `packages/desktop/src/main/index.ts`
 - **Triggers:** Native application launch via Electron.
 - **Responsibilities:** Create native application window, manage system menus, configure auto-updater, host local web UI.
 
 ### In-Process Host SDK
+
 - **Location:** `packages/sdk-next/src/index.ts`
 - **Triggers:** Invocation of `OpenCode.create()`.
 - **Responsibilities:** Instantiate in-memory server router and client without binding network ports.
@@ -201,18 +224,22 @@
 ## Cross-Cutting Concerns
 
 **Logging:**
+
 - Use Effect logging facilities (`Effect.logDebug`, `Effect.logInfo`, `Effect.logError`).
 - Configure log levels through CLI options (`--log-level`, `OPENCODE_LOG_LEVEL`) and log output destinations (`--print-logs`).
 
 **Observability & Tracing:**
+
 - Integrate OpenTelemetry tracing via `@effect/opentelemetry` and `@opentelemetry/api` (`packages/core/src/observability.ts`).
 - Propagate trace contexts across HTTP routes, session runner loops, and provider invocations.
 
 **Caching:**
+
 - LLM prompt caching is active by default across Anthropic, Bedrock, OpenAI, and Gemini (`packages/llm/src/index.ts`).
 - In-memory service caching per location via `LocationServiceMap`.
 - Project and repository cache management via `RepositoryCache` (`packages/core/src/repository-cache.ts`).
 
 **Storage:**
+
 - Primary persistence: Local SQLite database via WAL mode, busy timeout of 5000ms, tuned cache size, and Drizzle ORM migrations (`packages/core/src/database/database.ts`).
 - File storage and session snapshots: Managed through `packages/core/src/snapshot.ts` and `packages/core/src/storage/`.

@@ -51,9 +51,7 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Ex
 
 /** A repeated identical snapshot every heartbeat is noise, not a transition. */
 function transitioned(previous: UcsExternalAppSnapshot, next: UcsExternalAppSnapshot) {
-  return (
-    previous.state !== next.state || previous.health !== next.health || previous.activeMode !== next.activeMode
-  )
+  return previous.state !== next.state || previous.health !== next.health || previous.activeMode !== next.activeMode
 }
 
 const layer = Layer.effect(

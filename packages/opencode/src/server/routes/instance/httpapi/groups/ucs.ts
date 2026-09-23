@@ -171,7 +171,8 @@ export const UcsApi = HttpApi.make("ucs").add(
         OpenApi.annotations({
           identifier: "ucs.work",
           summary: "Task state",
-          description: "Read-only task state for the routed location: boulder progress, integration connections, evidence.",
+          description:
+            "Read-only task state for the routed location: boulder progress, integration connections, evidence.",
         }),
       ),
     )
@@ -291,7 +292,7 @@ export const UcsApi = HttpApi.make("ucs").add(
         title: "ucs",
         description: "Namespaced UCS server surface: read-only topology and task state, plus external-app control.",
       }),
-    )
+    ),
 )
 
 export type { UcsEventEnvelope }

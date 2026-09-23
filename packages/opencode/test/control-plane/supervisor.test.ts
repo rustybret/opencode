@@ -102,7 +102,9 @@ describe("control-plane.external-app.supervisor", () => {
       yield* ExternalAppSupervisor.start({ adapter: fake.adapter, emit: (snapshot) => emitted.push(snapshot) })
 
       yield* advance(5)
-      expect(emitted).toEqual([{ appId: "unity", state: "connected", health: "healthy", activeMode: "edit", updatedAt: 1_000 }])
+      expect(emitted).toEqual([
+        { appId: "unity", state: "connected", health: "healthy", activeMode: "edit", updatedAt: 1_000 },
+      ])
 
       // Long enough that the adapter is still unreachable at the end of the window.
       fake.state.failures = 20

@@ -50,14 +50,10 @@ export function mergeDict(
   base: Record<string, any> = {},
   ours: Record<string, any> = {},
   theirs: Record<string, any> = {},
-  conflictResolver?: (key: string, baseVal: any, ourVal: any, theirVal: any) => any
+  conflictResolver?: (key: string, baseVal: any, ourVal: any, theirVal: any) => any,
 ): Record<string, any> {
   const orderedKeys = Array.from(
-    new Set([
-      ...Object.keys(theirs || {}),
-      ...Object.keys(ours || {}),
-      ...Object.keys(base || {}),
-    ])
+    new Set([...Object.keys(theirs || {}), ...Object.keys(ours || {}), ...Object.keys(base || {})]),
   )
 
   const result: Record<string, any> = {}
@@ -133,7 +129,7 @@ function dependencyConflictResolver(
   _baseVal: any,
   ourVal: any,
   theirVal: any,
-  patchedDeps: Record<string, string> = {}
+  patchedDeps: Record<string, string> = {},
 ): any {
   // If the dependency version in ours is backed by a root package.json patch, preserve ours
   const patchKey = `${key}@${ourVal}`
@@ -148,12 +144,7 @@ function dependencyConflictResolver(
   return theirVal ?? ourVal
 }
 
-function scriptConflictResolver(
-  _key: string,
-  _baseVal: any,
-  ourVal: any,
-  theirVal: any
-): any {
+function scriptConflictResolver(_key: string, _baseVal: any, ourVal: any, theirVal: any): any {
   // Preserve custom timeout flags in fork scripts
   if (typeof ourVal === "string" && typeof theirVal === "string") {
     if (ourVal.includes("--timeout") && !theirVal.includes("--timeout")) {
@@ -166,7 +157,7 @@ function scriptConflictResolver(
 function mergePatchedDependencies(
   _base: Record<string, string> = {},
   ours: Record<string, string> = {},
-  theirs: Record<string, string> = {}
+  theirs: Record<string, string> = {},
 ): Record<string, string> {
   const result: Record<string, string> = { ...theirs }
   for (const [key, patchPath] of Object.entries(ours || {})) {
@@ -192,8 +183,8 @@ function mergePatchedDependencies(
 
 function mergeWorkspaces(base: any, ours: any, theirs: any): any {
   if (Array.isArray(ours) || Array.isArray(theirs)) {
-    const ourList = Array.isArray(ours) ? ours : ours?.packages ?? []
-    const theirList = Array.isArray(theirs) ? theirs : theirs?.packages ?? []
+    const ourList = Array.isArray(ours) ? ours : (ours?.packages ?? [])
+    const theirList = Array.isArray(theirs) ? theirs : (theirs?.packages ?? [])
     return Array.from(new Set([...theirList, ...ourList]))
   }
   if (typeof ours === "object" || typeof theirs === "object") {
@@ -206,12 +197,7 @@ function mergeWorkspaces(base: any, ours: any, theirs: any): any {
   return theirs ?? ours ?? base
 }
 
-export function mergePackageJson(
-  base: any,
-  ours: any,
-  theirs: any,
-  rootPatchedDeps: Record<string, string> = {}
-): any {
+export function mergePackageJson(base: any, ours: any, theirs: any, rootPatchedDeps: Record<string, string> = {}): any {
   if (!ours && !theirs) return base
   if (!ours) return theirs
   if (!theirs) return ours
@@ -233,11 +219,8 @@ export function mergePackageJson(
 
   // 4. Dependencies
   if (theirs.dependencies || ours.dependencies || base?.dependencies) {
-    result.dependencies = mergeDict(
-      base?.dependencies,
-      ours.dependencies,
-      theirs.dependencies,
-      (k, b, o, t) => dependencyConflictResolver(k, b, o, t, rootPatchedDeps)
+    result.dependencies = mergeDict(base?.dependencies, ours.dependencies, theirs.dependencies, (k, b, o, t) =>
+      dependencyConflictResolver(k, b, o, t, rootPatchedDeps),
     )
   }
 
@@ -247,7 +230,7 @@ export function mergePackageJson(
       base?.devDependencies,
       ours.devDependencies,
       theirs.devDependencies,
-      (k, b, o, t) => dependencyConflictResolver(k, b, o, t, rootPatchedDeps)
+      (k, b, o, t) => dependencyConflictResolver(k, b, o, t, rootPatchedDeps),
     )
   }
 
@@ -257,7 +240,7 @@ export function mergePackageJson(
       base?.peerDependencies,
       ours.peerDependencies,
       theirs.peerDependencies,
-      (k, b, o, t) => dependencyConflictResolver(k, b, o, t, rootPatchedDeps)
+      (k, b, o, t) => dependencyConflictResolver(k, b, o, t, rootPatchedDeps),
     )
   }
 
@@ -266,7 +249,7 @@ export function mergePackageJson(
     result.patchedDependencies = mergePatchedDependencies(
       base?.patchedDependencies,
       ours.patchedDependencies,
-      theirs.patchedDependencies
+      theirs.patchedDependencies,
     )
   }
 
@@ -296,8 +279,8 @@ function resolveFile(filePath: string): boolean {
   try {
     const rootPkg = parseJson(
       tryGit([":2:package.json"]) ??
-      tryGit(["show", `HEAD:package.json`]) ??
-      readFileSync(join(root, "package.json"), "utf-8")
+        tryGit(["show", `HEAD:package.json`]) ??
+        readFileSync(join(root, "package.json"), "utf-8"),
     )
     if (rootPkg?.patchedDependencies) {
       rootPatchedDeps = rootPkg.patchedDependencies

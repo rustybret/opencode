@@ -1,6 +1,16 @@
 import { homedir } from "os"
 import { join } from "path"
-import { existsSync, renameSync, unlinkSync, chmodSync, readdirSync, lstatSync, copyFileSync, mkdirSync, rmSync } from "fs"
+import {
+  existsSync,
+  renameSync,
+  unlinkSync,
+  chmodSync,
+  readdirSync,
+  lstatSync,
+  copyFileSync,
+  mkdirSync,
+  rmSync,
+} from "fs"
 import { spawnSync } from "child_process"
 import { createHash } from "crypto"
 import { $ } from "bun"

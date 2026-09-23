@@ -20,7 +20,7 @@ export function deriveSubagentSessionPermission(input: {
   const canTodo = input.subagent.permission.some((rule) => rule.permission === "todowrite")
 
   const externalDirectoryRules = input.parentSessionPermission.filter(
-    (rule) => rule.permission === "external_directory"
+    (rule) => rule.permission === "external_directory",
   )
 
   // Group parent session rules by permission (excluding external_directory)

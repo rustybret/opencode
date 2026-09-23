@@ -356,7 +356,11 @@ describe("UcsExternalApp typed failures", () => {
   })
 
   test("UcsExternalAppTimeoutError round-trips and requires timeoutMs", () => {
-    const encoded = { _tag: "UcsExternalAppTimeoutError", message: "bridge_status timed out", timeoutMs: 5_000 } as const
+    const encoded = {
+      _tag: "UcsExternalAppTimeoutError",
+      message: "bridge_status timed out",
+      timeoutMs: 5_000,
+    } as const
     expect(encodeTimeoutError(Option.getOrThrow(decodeTimeoutError(encoded)))).toEqual(encoded)
     expect(Option.isNone(decodeTimeoutError({ _tag: "UcsExternalAppTimeoutError", message: "timed out" }))).toBe(true)
   })

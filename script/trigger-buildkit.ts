@@ -32,7 +32,10 @@ function getLatestRemoteRelease(remote = REMOTE): string {
   if (res.status !== 0 || !res.stdout.trim()) {
     // Fallback: query git rev-list tags
     const fallback = spawnSync("git", ["tag", "--sort=-creatordate"], { encoding: "utf8" })
-    const tags = fallback.stdout.split("\n").map(t => t.trim()).filter(Boolean)
+    const tags = fallback.stdout
+      .split("\n")
+      .map((t) => t.trim())
+      .filter(Boolean)
     if (!tags.length) {
       throw new Error("No git release tags found on remote.")
     }
@@ -85,7 +88,7 @@ async function main() {
   console.log("\n[OK] BuildKit trigger payload ready for Cloudhome dispatch.")
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("Error:", err.message)
   process.exit(1)
 })

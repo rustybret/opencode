@@ -68,7 +68,10 @@ describe("createUnityMcpClient", () => {
   })
 
   test("a non-JSON text block is a protocol error", async () => {
-    const bridge = startBridge({ bridge_status: () => ({ content: [{ type: "text", text: "not json" }] }) }, { raw: true })
+    const bridge = startBridge(
+      { bridge_status: () => ({ content: [{ type: "text", text: "not json" }] }) },
+      { raw: true },
+    )
     const client = createUnityMcpClient({ transport: bridge.transport })
 
     await Effect.runPromise(client.connect())

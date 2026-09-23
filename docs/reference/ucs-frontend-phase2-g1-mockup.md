@@ -3,7 +3,7 @@
 **Document Version:** 1.0.0  
 **Date:** 2026-08-11  
 **Status:** DRAFT FOR REVIEW  
-**Target Recipient:** `uc-studio`  
+**Target Recipient:** `uc-studio`
 
 ---
 
@@ -12,6 +12,7 @@
 This document defines the visual layout, component hierarchy, data bindings, and responsive behavior for the **Phase 2 Read-Only Web Vertical Slice** of the User Context System (UCS) Web interface. Built using **TypeScript / SolidJS** (`@opencode-ai/app` + `@opencode-ai/session-ui`), this interface provides a comprehensive, real-time observation surface for active workspaces and multi-agent sessions.
 
 ### 1.1 Core Architectural Invariants
+
 1. **Prompt Caching Parity (`cache_read` Floor)**: To satisfy the prompt caching invariant (Memory #2994), all frontend communication routes strictly out-of-band via namespaced `/ucs/*` REST endpoints and `/ucs/events` SSE. The frontend does not inject any UI presence indicators or dynamic tables into the LLM conversation context, ensuring 100% `cache_read` parity with the TUI and zero cache busts (`full_bust === 0`).
 2. **Strict Read-Only Posture**: In accordance with the Phase 2 specification (Spec 2.4), all input fields, submission controls, and mutation triggers are omitted from the UI. The server-side substrate enforces this by returning `HTTP 403 Forbidden` for any mutation requests originating from the Web UI client context.
 3. **Hosting Isolation**: The frontend runs as an independent web application surface, proxying or binding to a separate port, allowing hot-reloading and isolated development without polluting the core server execution.
@@ -23,12 +24,13 @@ This document defines the visual layout, component hierarchy, data bindings, and
 The interface is structured around four primary views that display the state of the workspace, session hierarchy, event logs, and task progress.
 
 ### 2.1 Session Topology Tree View (View A)
-* **Description**: Interactive visual hierarchy of parent sessions and parallel subagent trees, showing agent identity, model ID, status, token usage, and cumulative session cost.
-* **Component Breakdown**:
+
+- **Description**: Interactive visual hierarchy of parent sessions and parallel subagent trees, showing agent identity, model ID, status, token usage, and cumulative session cost.
+- **Component Breakdown**:
   - `<SessionTopologyTree>`: Container component managing the tree layout and rendering nodes.
   - `<TopologyNode>`: Individual node representing a session, styled based on its role and status.
   - `<NodeMetrics>`: Inline badge displaying token counts and cumulative cost.
-* **Data Fields**:
+- **Data Fields**:
   - `id`: Unique session identifier.
   - `parentId`: Parent session identifier (null for primary session).
   - `role`: `primary` | `subagent` | `compaction`
@@ -39,59 +41,62 @@ The interface is structured around four primary views that display the state of 
   - `cacheReadTokens`: Number of prompt cache read tokens.
   - `cacheWriteTokens`: Number of prompt cache write tokens.
   - `totalCostUsd`: Cumulative cost of the session in USD.
-* **Data Source Annotation**:
+- **Data Source Annotation**:
   - **Endpoint**: `GET /ucs/topology`
   - **Data Status**: `supported` (Phase-1 endpoint)
 
 ### 2.2 Live Event Stream / Log Observer (View B)
-* **Description**: Real-time SSE stream log capturing lifecycle events, tool invocations, background task states, and session completions.
-* **Component Breakdown**:
+
+- **Description**: Real-time SSE stream log capturing lifecycle events, tool invocations, background task states, and session completions.
+- **Component Breakdown**:
   - `<LiveEventStream>`: Main container that connects to the SSE stream and manages the log buffer.
   - `<EventLogList>`: Virtualized list rendering log entries efficiently.
   - `<EventLogItem>`: Individual log entry component with syntax highlighting for payloads.
   - `<EventPayloadViewer>`: Expandable modal/drawer for inspecting detailed JSON payloads.
-* **Data Fields**:
+- **Data Fields**:
   - `id`: Unique event identifier.
   - `timestamp`: ISO timestamp of the event.
   - `type`: Event type (e.g., `session_start`, `tool_call`, `tool_response`, `session_complete`).
   - `payload`: JSON object containing tool name, arguments, result, or error.
   - `agentId`: Identifier of the agent that triggered the event.
   - `modelId`: Model ID associated with the agent.
-* **Data Source Annotation**:
+- **Data Source Annotation**:
   - **Endpoint**: `GET /ucs/events` (SSE)
   - **Data Status**: `supported` (Phase-1 endpoint)
 
 ### 2.3 Boulder State & Evidence Inspector (View C)
-* **Description**: Visual tracking of active `.omo/boulder.json` task goals, active step, plan completion percentage, and `.omo/evidence/` artifact counts.
-* **Component Breakdown**:
+
+- **Description**: Visual tracking of active `.omo/boulder.json` task goals, active step, plan completion percentage, and `.omo/evidence/` artifact counts.
+- **Component Breakdown**:
   - `<BoulderInspector>`: Container displaying the active task goal and step list.
   - `<StepProgressBar>`: Visual progress bar showing plan completion percentage.
   - `<EvidenceGrid>`: Grid layout displaying generated evidence artifacts.
   - `<EvidenceCard>`: Card component representing an individual evidence file.
-* **Data Fields**:
+- **Data Fields**:
   - `activeStep`: Description of the currently executing step.
   - `completedSteps`: Number of completed steps in the plan.
   - `totalSteps`: Total number of steps in the plan.
   - `planCompletionPercentage`: Calculated percentage of plan completion.
   - `evidenceCount`: Total count of evidence files in `.omo/evidence/`.
   - `evidenceFiles`: Array of file metadata (name, size, path, timestamp).
-* **Data Source Annotation**:
+- **Data Source Annotation**:
   - **Endpoint**: `GET /ucs/work`
   - **Data Status**: `supported (beta)` (Phase-1 endpoint)
 
 ### 2.4 Workspace / Multi-Project Selector (View D)
-* **Description**: Dynamic switcher between active projects registered in `/ucs/projects`.
-* **Component Breakdown**:
+
+- **Description**: Dynamic switcher between active projects registered in `/ucs/projects`.
+- **Component Breakdown**:
   - `<WorkspaceSelector>`: Dropdown or sidebar list for switching projects.
   - `<ProjectList>`: List of registered projects.
   - `<ProjectCard>`: Card displaying project name, path, and active status.
-* **Data Fields**:
+- **Data Fields**:
   - `id`: Unique project identifier.
   - `name`: Display name of the project.
   - `path`: Absolute path to the project root.
   - `status`: `active` | `inactive`
   - `lastActive`: Timestamp of last activity.
-* **Data Source Annotation**:
+- **Data Source Annotation**:
   - **Endpoint**: `GET /ucs/projects`
   - **Data Status**: `supported` (Phase-1 endpoint)
 
@@ -102,78 +107,83 @@ The interface is structured around four primary views that display the state of 
 The right-hand side panel (or overlay drawer on smaller screens) hosts diagnostic widgets. Note that while the Phase 2 Feedback Specification header refers to "4 Side Panels", it explicitly lists 5 widgets; all 5 are implemented here.
 
 ### 3.1 OAuth Plugin Quota Status Panel (Widget 1)
-* **Description**: Readout for the 3 auth plugins (Anthropic, OpenAI, Gemini) tracking token usage and quota ceilings.
-* **Component Breakdown**:
+
+- **Description**: Readout for the 3 auth plugins (Anthropic, OpenAI, Gemini) tracking token usage and quota ceilings.
+- **Component Breakdown**:
   - `<OAuthQuotaPanel>`: Container displaying quota cards for each provider.
   - `<QuotaProgressBar>`: Visual representation of token usage against the ceiling.
-* **Data Fields**:
+- **Data Fields**:
   - `provider`: `anthropic` | `openai` | `gemini`
   - `tokenUsage`: Number of tokens consumed in the current billing cycle.
   - `quotaCeiling`: Maximum token limit.
   - `resetTime`: Timestamp when the quota resets.
-* **Data Source Annotation**:
-  - **Endpoint**: `GET /ucs/quota` *(proposed)*
+- **Data Source Annotation**:
+  - **Endpoint**: `GET /ucs/quota` _(proposed)_
   - **Data Status**: `planned` (Phase 2.5 endpoint)
 
 ### 3.2 AFT Code Health Widget (Widget 2)
-* **Description**: Live status-bar metrics showing LSP diagnostic counts (`E`/`W`), dead-code estimates (`D`), unused exports (`U`), duplication clone groups (`C`), and TODO items (`T`).
-* **Component Breakdown**:
+
+- **Description**: Live status-bar metrics showing LSP diagnostic counts (`E`/`W`), dead-code estimates (`D`), unused exports (`U`), duplication clone groups (`C`), and TODO items (`T`).
+- **Component Breakdown**:
   - `<AftCodeHealthWidget>`: Compact status bar component.
   - `<MetricBadge>`: Individual badge for each metric category.
-* **Data Fields**:
+- **Data Fields**:
   - `errors`: Count of active LSP errors (E).
   - `warnings`: Count of active LSP warnings (W).
   - `deadCode`: Count of suspected dead-code symbols (D).
   - `unusedExports`: Count of unused exports (U).
   - `duplicates`: Count of duplicate code clone groups (C).
   - `todos`: Count of TODO comments in the workspace (T).
-* **Data Source Annotation**:
-  - **Endpoint**: `GET /ucs/health` *(proposed)*
+- **Data Source Annotation**:
+  - **Endpoint**: `GET /ucs/health` _(proposed)_
   - **Data Status**: `planned` (Phase 2.5 endpoint)
 
 ### 3.3 Cache Diagnostics & Prompt Bust Panel (Widget 3)
-* **Description**: Hit ratio tracking, prompt-cache read counts (`cache_read`), and cache-bust diagnostics (parity with CortexKit dashboard).
-* **Component Breakdown**:
+
+- **Description**: Hit ratio tracking, prompt-cache read counts (`cache_read`), and cache-bust diagnostics (parity with CortexKit dashboard).
+- **Component Breakdown**:
   - `<CacheDiagnosticsPanel>`: Container displaying cache efficiency metrics.
   - `<HitRatioGauge>`: Circular gauge showing the cache hit ratio.
-* **Data Fields**:
+- **Data Fields**:
   - `cacheReadTokens`: Total tokens read from prompt cache.
   - `cacheWriteTokens`: Total tokens written to prompt cache.
   - `cacheHitRatio`: Percentage of prompt tokens served from cache.
   - `fullBustCount`: Number of cache bust events (must remain `0`).
-* **Data Source Annotation**:
-  - **Endpoint**: `GET /ucs/cache` *(proposed)*
+- **Data Source Annotation**:
+  - **Endpoint**: `GET /ucs/cache` _(proposed)_
   - **Data Status**: `planned` (Phase 2.5 endpoint)
 
 ### 3.4 AFT Live LSP Diagnostics Panel (Widget 4)
-* **Description**: Detailed expandable panel displaying active language-server diagnostic messages across the workspace.
-* **Component Breakdown**:
+
+- **Description**: Detailed expandable panel displaying active language-server diagnostic messages across the workspace.
+- **Component Breakdown**:
   - `<AftLspDiagnosticsPanel>`: Container listing active diagnostics.
   - `<DiagnosticItem>`: Expandable item showing file path, line number, and error message.
-* **Data Fields**:
+- **Data Fields**:
   - `filePath`: Relative path to the file containing the diagnostic.
   - `line`: 1-based line number.
   - `column`: 1-based column number.
   - `severity`: `error` | `warning`
   - `message`: The diagnostic message from the LSP.
   - `ruleId`: The rule identifier (if available).
-* **Data Source Annotation**:
-  - **Endpoint**: `GET /ucs/diagnostics` *(proposed)*
+- **Data Source Annotation**:
+  - **Endpoint**: `GET /ucs/diagnostics` _(proposed)_
   - **Data Status**: `planned` (Phase 2.5 endpoint)
 
 ### 3.5 External App Status Card (Widget 5)
-* **Description**: Dedicated status badge for connected `UcsExternalApp` bridge engines (e.g. Unity SuperMCP editor connection, compilation, and playmode states).
-* **Component Breakdown**:
+
+- **Description**: Dedicated status badge for connected `UcsExternalApp` bridge engines (e.g. Unity SuperMCP editor connection, compilation, and playmode states).
+- **Component Breakdown**:
   - `<ExternalAppStatusCard>`: Card displaying connection and runtime state.
   - `<IntegrationBadge>`: Status badge for active integrations.
-* **Data Fields**:
+- **Data Fields**:
   - `adapterId`: Identifier of the external adapter (e.g., `unity-supermcp`).
   - `engineType`: `unity` | `unreal` | `xcode` | `blender`
   - `connectionStatus`: `connected` | `disconnected` | `standby` | `error`
   - `playmode`: Boolean indicating if playmode is active.
   - `compilation`: Boolean indicating if compilation is in progress.
   - `modalBlocked`: Boolean indicating if the editor is blocked by a modal dialog.
-* **Data Source Annotation**:
+- **Data Source Annotation**:
   - **Endpoint**: `GET /ucs/work` (`integrations` block)
   - **Data Status**: `supported` (Phase-1 endpoint)
 
@@ -182,6 +192,7 @@ The right-hand side panel (or overlay drawer on smaller screens) hosts diagnosti
 ## 4. Responsive ASCII Wireframes
 
 ### 4.1 Mobile Breakpoint (375px)
+
 On mobile devices, the layout is a single-column stacked view. Navigation tabs switch between the primary views, and the side panels are accessible via an overlay drawer.
 
 ```
@@ -210,6 +221,7 @@ On mobile devices, the layout is a single-column stacked view. Navigation tabs s
 ```
 
 ### 4.2 Tablet Breakpoint (768px)
+
 On tablet devices, the layout splits into a dual-column view. The primary view occupies the left column, while a collapsible side-panel column occupies the right.
 
 ```
@@ -240,6 +252,7 @@ On tablet devices, the layout splits into a dual-column view. The primary view o
 ```
 
 ### 4.3 Desktop Breakpoint (1280px)
+
 On desktop screens, a multi-pane layout is used. The left pane contains the workspace selector, the center pane displays the primary views (topology and event stream stacked or side-by-side), and the right pane displays the grid of side-panel widgets.
 
 ```
@@ -281,7 +294,9 @@ On desktop screens, a multi-pane layout is used. The left pane contains the work
 To enforce the read-only security posture of Phase 2, the frontend interface completely omits all input and mutation controls. The server-side substrate acts as the final gate, rejecting any write operations with an `HTTP 403 Forbidden` response.
 
 ### 5.1 Omitted UI Elements
+
 The following interactive elements are explicitly omitted from the Phase 2 frontend:
+
 1. **Prompt Input Fields**: No textareas, text inputs, or chat boxes for sending prompts or messages to the agent.
 2. **Submission Triggers**: No "Send", "Submit", "Run", or "Execute" buttons.
 3. **Tool Approval Controls**: No buttons or dialogs to approve, reject, or modify pending tool executions.
@@ -291,10 +306,12 @@ The following interactive elements are explicitly omitted from the Phase 2 front
 7. **Configuration Editors**: No settings panels or forms to modify agent configurations, model parameters, or environment variables.
 
 ### 5.2 Server-Side Enforcement
+
 The server substrate enforces this gate at the route level. Any client attempting to access mutation endpoints will receive an immediate `HTTP 403 Forbidden` response. The affected endpoints include:
-* `POST /ucs/sessions` (Session creation)
-* `POST /ucs/tools/approve` (Tool execution approval)
-* `POST /ucs/tools/reject` (Tool execution rejection)
-* `POST /ucs/projects` (Project registration)
-* `DELETE /ucs/projects/:id` (Project deregistration)
-* `PUT /ucs/config` (Configuration updates)
+
+- `POST /ucs/sessions` (Session creation)
+- `POST /ucs/tools/approve` (Tool execution approval)
+- `POST /ucs/tools/reject` (Tool execution rejection)
+- `POST /ucs/projects` (Project registration)
+- `DELETE /ucs/projects/:id` (Project deregistration)
+- `PUT /ucs/config` (Configuration updates)

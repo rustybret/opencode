@@ -46,7 +46,7 @@ The UCS Web interface is structured as a multi-pane layout consisting of a **Wor
 ```mermaid
 stateDiagram-v2
     [*] --> AppInitialization : Load App
-    
+
     state AppInitialization {
         [*] --> FetchCapabilities : GET /ucs/capabilities
         FetchCapabilities --> EstablishSSE : Establish EventSource (/ucs/events)
@@ -54,12 +54,12 @@ stateDiagram-v2
     }
 
     AppInitialization --> WorkspaceSelected : Workspace Resolved
-    
+
     state WorkspaceSelected {
         [*] --> RouteToProject : URL: /ucs/project/:id
         RouteToProject --> FetchTopology : GET /ucs/topology?directory=:dir
         RouteToProject --> FetchTaskState : GET /ucs/work?directory=:dir
-        
+
         state ViewSwitching {
             [*] --> TopologyTab : Default View
             TopologyTab --> TaskStateTab : Click "Task State"
@@ -67,7 +67,7 @@ stateDiagram-v2
             TaskStateTab --> TopologyTab : Click "Topology"
             EventLogTab --> TopologyTab : Click "Topology"
         }
-        
+
         state DetailPanel {
             [*] --> PanelClosed
             PanelClosed --> PanelOpen : Select Session Node
@@ -79,7 +79,7 @@ stateDiagram-v2
 
     WorkspaceSelected --> WorkspaceSelected : Switch Project (Select from Dropdown)
     WorkspaceSelected --> ConnectionLost : SSE Disconnect / Network Error
-    
+
     state ConnectionLost {
         [*] --> BackoffTimer : Start Exponential Backoff
         BackoffTimer --> ReconnectAttempt : Timer Expires
@@ -115,6 +115,7 @@ sequenceDiagram
 ```
 
 ### Flow Details:
+
 1. **Selection:** The user clicks a project in the Workspace Selector.
 2. **Route Update:** The router updates the URL path to `/ucs/project/:id` (where `:id` is the base64-encoded or hashed project directory path).
 3. **Topology Re-scope:** The `ServerSDK` context detects the directory change and re-scopes the active directory context.
@@ -132,7 +133,7 @@ graph TD
     Root[Primary Session: primary] -->|parentID| Sub1[Subagent: explore]
     Root -->|parentID| Sub2[Subagent: librarian]
     Sub1 -->|parentID| NestedSub1[Subagent: oracle]
-    
+
     style Root fill:#4f46e5,stroke:#312e81,stroke-width:2px,color:#fff
     style Sub1 fill:#0ea5e9,stroke:#0369a1,stroke-width:1px,color:#fff
     style Sub2 fill:#0ea5e9,stroke:#0369a1,stroke-width:1px,color:#fff
@@ -194,11 +195,11 @@ The interface utilizes a responsive, multi-pane grid that adapts to different sc
 
 The UI dynamically adapts based on the `UcsCapabilityManifest` returned by `/ucs/capabilities`:
 
-| Capability | Status = `supported` / `beta` | Status = `planned` / `absent` |
-|---|---|---|
-| `boulder-state` | Render step progress bar, task goals, and step list in the Task State tab. | Hide step progress; display a simplified status banner. |
-| `mailbox` | Render the Mailbox tab and notification badges. | Hide the Mailbox tab and disable notification polling. |
-| `evidence` | Render the Artifact Viewer and evidence links in the Detail Panel. | Hide evidence links and display "Evidence tracking unavailable". |
+| Capability      | Status = `supported` / `beta`                                              | Status = `planned` / `absent`                                    |
+| --------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `boulder-state` | Render step progress bar, task goals, and step list in the Task State tab. | Hide step progress; display a simplified status banner.          |
+| `mailbox`       | Render the Mailbox tab and notification badges.                            | Hide the Mailbox tab and disable notification polling.           |
+| `evidence`      | Render the Artifact Viewer and evidence links in the Detail Panel.         | Hide evidence links and display "Evidence tracking unavailable". |
 
 ---
 
@@ -230,7 +231,7 @@ When the SSE connection is lost, the client initiates a reconnect loop with expo
 stateDiagram-v2
     [*] --> Connected
     Connected --> Disconnected : Connection Lost / Error
-    
+
     state Disconnected {
         [*] --> InitBackoff : Set Delay = 250ms
         InitBackoff --> Wait : Wait for Delay
@@ -240,12 +241,14 @@ stateDiagram-v2
         Fail --> DoubleDelay : Double Delay (Max 16s)
         DoubleDelay --> Wait
     }
-    
+
     Success --> Connected : Resync State (Fetch Topology & Work)
 ```
 
 #### Resync Protocol:
+
 Upon successful reconnection, the client must perform a full state resync:
+
 1. Re-fetch `/ucs/topology` to capture any subagents spawned during the disconnect.
 2. Re-fetch `/ucs/work` to update the latest task and integration states.
 3. Flush any queued local UI updates.
@@ -260,11 +263,11 @@ graph TD
     FetchCaps --> CheckBoulder{boulder-state?}
     CheckBoulder -->|supported| RenderBoulder[Render Step Progress & Goals]
     CheckBoulder -->|absent/planned| DegradeBoulder[Hide Progress, Show Simple Status]
-    
+
     FetchCaps --> CheckMailbox{mailbox?}
     CheckMailbox -->|supported| RenderMailbox[Render Mailbox Tab & Badges]
     CheckMailbox -->|absent/planned| HideMailbox[Hide Mailbox Tab]
-    
+
     style DegradeBoulder fill:#fef3c7,stroke:#d97706,stroke-width:1px
     style HideMailbox fill:#fef3c7,stroke:#d97706,stroke-width:1px
 ```

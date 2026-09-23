@@ -19,7 +19,6 @@ class GlobalBusEmitter extends EventEmitter<{
     this.setMaxListeners(0)
   }
 
-
   override emit<K>(eventName: "event" | K, ...args: any[]): boolean {
     if (eventName === "event") {
       const event = args[0] as GlobalEvent | undefined

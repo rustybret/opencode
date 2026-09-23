@@ -1,0 +1,9 @@
+{
+  "$schema": "file://~/.config/arcus/manifests/schema.json",
+  "package_id": "opencode-desktop",
+  "software_type": "cli",
+  "source_id": "arcus",
+  "channel": "stable",
+  "binary_name": "opencode-desktop",
+  "format": "tar.zst"
+}

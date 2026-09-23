@@ -151,7 +151,10 @@ const openEventStream = (directory: string) =>
   Effect.gen(function* () {
     const response = yield* request("/ucs/events", directory)
     const reader = yield* Queue.unbounded<Uint8Array>()
-    yield* response.stream.pipe(Stream.runForEach((value) => Queue.offer(reader, value)), Effect.forkScoped)
+    yield* response.stream.pipe(
+      Stream.runForEach((value) => Queue.offer(reader, value)),
+      Effect.forkScoped,
+    )
     return { response, reader }
   })
 

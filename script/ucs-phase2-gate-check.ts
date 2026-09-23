@@ -18,7 +18,12 @@ interface GateCheckResult {
 
 const results: GateCheckResult[] = []
 
-function checkGate(gate: string, filename: string, requiredSections: string[], extraChecks?: (content: string, res: GateCheckResult) => void) {
+function checkGate(
+  gate: string,
+  filename: string,
+  requiredSections: string[],
+  extraChecks?: (content: string, res: GateCheckResult) => void,
+) {
   const filePath = join(DOCS_DIR, filename)
   const res: GateCheckResult = { gate, file: filename, passed: true, errors: [], warnings: [] }
 
@@ -46,24 +51,29 @@ function checkGate(gate: string, filename: string, requiredSections: string[], e
 }
 
 // Check G1: UI Design Mockup
-checkGate("G1", "ucs-frontend-phase2-g1-mockup.md", [
-  "Session Topology Tree",
-  "Live Event Stream",
-  "Boulder State & Evidence Inspector",
-  "Workspace / Multi-Project Selector",
-  "OAuth Plugin Quota Status",
-  "AFT Code Health Widget",
-  "Cache Diagnostics & Prompt Bust Panel",
-  "AFT Live LSP Diagnostics",
-  "External App Status Card",
-  "Data Source Annotation",
-  "Read-Only",
-], (content, res) => {
-  if (!content.includes("Phase-1 endpoint") && !content.includes("Phase 1")) {
-    res.passed = false
-    res.errors.push("G1 mockup missing explicit Data Source Annotations")
-  }
-})
+checkGate(
+  "G1",
+  "ucs-frontend-phase2-g1-mockup.md",
+  [
+    "Session Topology Tree",
+    "Live Event Stream",
+    "Boulder State & Evidence Inspector",
+    "Workspace / Multi-Project Selector",
+    "OAuth Plugin Quota Status",
+    "AFT Code Health Widget",
+    "Cache Diagnostics & Prompt Bust Panel",
+    "AFT Live LSP Diagnostics",
+    "External App Status Card",
+    "Data Source Annotation",
+    "Read-Only",
+  ],
+  (content, res) => {
+    if (!content.includes("Phase-1 endpoint") && !content.includes("Phase 1")) {
+      res.passed = false
+      res.errors.push("G1 mockup missing explicit Data Source Annotations")
+    }
+  },
+)
 
 // Check G2: UI Flow Diagram
 checkGate("G2", "ucs-frontend-phase2-g2-flow.md", [
@@ -88,18 +98,17 @@ checkGate("G3", "ucs-frontend-phase2-g3-personas.md", [
 ])
 
 // Check G4: Real-Data Mockup
-checkGate("G4", "ucs-frontend-phase2-g4-real-data-mockup.md", [
-  "High-Fidelity Real-Data Mockup",
-  "Topology Tree",
-  "Tokens",
-  "Boulder Evidence",
-  "Provenance",
-], (content, res) => {
-  if (content.includes("Lorem ipsum") || content.includes("sample_session_123")) {
-    res.passed = false
-    res.errors.push("G4 mockup contains placeholder data instead of real session values")
-  }
-})
+checkGate(
+  "G4",
+  "ucs-frontend-phase2-g4-real-data-mockup.md",
+  ["High-Fidelity Real-Data Mockup", "Topology Tree", "Tokens", "Boulder Evidence", "Provenance"],
+  (content, res) => {
+    if (content.includes("Lorem ipsum") || content.includes("sample_session_123")) {
+      res.passed = false
+      res.errors.push("G4 mockup contains placeholder data instead of real session values")
+    }
+  },
+)
 
 console.log("=== UCS Phase 2 Pre-Implementation Gate Verifier ===")
 let totalPassed = 0

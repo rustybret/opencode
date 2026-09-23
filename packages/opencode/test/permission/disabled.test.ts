@@ -2,7 +2,16 @@ import { describe, it, expect } from "bun:test"
 import { disabled, fromConfig, merge, visibleTools } from "../../src/permission"
 
 describe("Permission.disabled", () => {
-  const allTools = ["edit", "write", "apply_patch", "read", "list_mcp_resources", "list_mcp_resource_templates", "read_mcp_resource", "bash"]
+  const allTools = [
+    "edit",
+    "write",
+    "apply_patch",
+    "read",
+    "list_mcp_resources",
+    "list_mcp_resource_templates",
+    "read_mcp_resource",
+    "bash",
+  ]
 
   it("a. Granular allows after catch-all", () => {
     const ruleset = fromConfig({ edit: { "*": "deny", "plans/*.md": "allow", ".omo/**": "allow" } })
@@ -29,7 +38,7 @@ describe("Permission.disabled", () => {
   it("d. Sub-pattern deny after catch-all deny", () => {
     const ruleset = [
       { permission: "edit", pattern: "*", action: "deny" as const },
-      { permission: "edit", pattern: "plans/*.md", action: "deny" as const }
+      { permission: "edit", pattern: "plans/*.md", action: "deny" as const },
     ]
     const hidden = disabled(["write", "edit", "apply_patch"], ruleset)
     expect(hidden.size).toBe(3)
@@ -68,7 +77,7 @@ describe("Permission.disabled", () => {
       edit: 1,
       write: 2,
       read: 3,
-      bash: 4
+      bash: 4,
     }
     const ruleset = fromConfig({ edit: "deny" })
     const visible = visibleTools(tools, ruleset)

@@ -147,7 +147,8 @@ if (mutationAllowed) {
 }
 
 if (!mutationAllowed) record("bounded-edit", "skip", "LIVE_MUTATION_ALLOW is not 1")
-if (mutationAllowed && blocked) record("bounded-edit", "skip", `editor is blocked-on-human (${blocked.reason}); never auto-dismissed`)
+if (mutationAllowed && blocked)
+  record("bounded-edit", "skip", `editor is blocked-on-human (${blocked.reason}); never auto-dismissed`)
 if (mutationAllowed && !blocked && !mutationTool)
   record(
     "bounded-edit",

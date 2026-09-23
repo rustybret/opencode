@@ -318,9 +318,7 @@ export const ucsHandlers = HttpApiBuilder.group(InstanceHttpApi, "ucs", (handler
       return snapshot
     })
 
-    const externalAppStatus = Effect.fn("UcsHttpApi.externalAppStatus")(function* (ctx: {
-      params: { appId: string }
-    }) {
+    const externalAppStatus = Effect.fn("UcsHttpApi.externalAppStatus")(function* (ctx: { params: { appId: string } }) {
       const entry = yield* registration(ctx.params.appId)
       return yield* entry.adapter.status().pipe(Effect.catch(readFailure))
     })

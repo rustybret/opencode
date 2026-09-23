@@ -41,7 +41,10 @@ export interface UnityMcpClientConfig {
   readonly transport?: () => Transport
 }
 
-export type UnityMcpCallFailure = UcsExternalAppTransportError | UcsExternalAppTimeoutError | UcsExternalAppProtocolError
+export type UnityMcpCallFailure =
+  | UcsExternalAppTransportError
+  | UcsExternalAppTimeoutError
+  | UcsExternalAppProtocolError
 
 export interface UnityMcpClient {
   readonly url: string

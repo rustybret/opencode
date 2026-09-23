@@ -256,7 +256,7 @@ export function hoist<A, E, T extends Tag, const Items extends Replacements = re
       }
       return { ...node, dependencies: node.dependencies.map(context.visit) }
     },
-    { resolve: (node) => (node ? replacementMap.get(node.name) ?? node : node) },
+    { resolve: (node) => (node ? (replacementMap.get(node.name) ?? node) : node) },
   )
 
   return {
@@ -282,7 +282,7 @@ export function compile<A, E, const Items extends Replacements = readonly []>(
           ? implementation
           : implementation.pipe(Layer.provide(dependencies as [RuntimeLayer, ...RuntimeLayer[]]))
       },
-      { cache, resolve: (node) => (node ? replacementMap.get(node.name) ?? node : node) },
+      { cache, resolve: (node) => (node ? (replacementMap.get(node.name) ?? node) : node) },
     )
   const layers = flatten(root).map((node) => compileNode(node))
   const layer = layers.reduce<RuntimeLayer>((result, layer) => layer.pipe(Layer.provideMerge(result)), Layer.empty)

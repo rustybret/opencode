@@ -23,12 +23,14 @@ This document establishes the binding requirements, architectural constraints, a
 The Phase 2 frontend must deliver a comprehensive read-only observation surface across registered workspaces:
 
 #### Primary Views:
+
 1. **Session Topology Tree View**: Interactive visual hierarchy of parent sessions and parallel subagent trees, showing agent identity, model ID, status, token usage, and cumulative session cost.
 2. **Live Event Stream / Log Observer**: Real-time SSE stream log capturing lifecycle events, tool invocations, background task states, and session completions.
 3. **Boulder State & Evidence Inspector**: Visual tracking of active `.omo/boulder.json` task goals, active step, plan completion percentage, and `.omo/evidence/` artifact counts.
 4. **Workspace / Multi-Project Selector**: Dynamic switcher between active projects registered in `/ucs/projects`.
 
 #### Mandatory Side Panels & Diagnostic Widgets:
+
 1. **OAuth Plugin Quota Status**: Readout for the 3 auth plugins (Anthropic, OpenAI, Gemini) tracking token usage and quota ceilings.
 2. **AFT Code Health Widget**: Live status-bar metrics showing LSP diagnostic counts (`E`/`W`), dead-code estimates (`D`), unused exports (`U`), duplication clone groups (`C`), and TODO items (`T`).
 3. **Cache Diagnostics & Prompt Bust Panel**: Hit ratio tracking, prompt-cache read counts (`cache_read`), and cache-bust diagnostics (parity with CortexKit dashboard).
@@ -55,13 +57,14 @@ Following review of `opencode`'s pushback note (mailbox message `49bab863-d061-4
 
 1. **Stack Permitted for `opencode` Fork**: **TypeScript / SolidJS** is approved specifically for the `opencode` fork's frontend surfaces (`packages/app`, `packages/session-ui`) to leverage its existing shipping UI primitives, `@pierre/trees` topology components, `@solid-primitives/websocket` SSE stream handlers, and `@ucs/contracts` v0.2.0 generated TypeScript bindings.
 2. **Hosting Architecture (Option 3.2)**: The frontend runs as a distinct web application surface communicating strictly out-of-band with the host server over namespaced `/ucs/*` REST and `/ucs/events` SSE (e.g. proxying or separate port binding), ensuring independent frontend development, hot-reloading, and zero LLM context pollution.
-3. **Repository Architecture Invariant (Saved in Memory #3254)**: For any future standalone tooling, native desktop wrappers, or dashboards authored *natively* within `uc-studio` outside the `opencode` fork, the strict stack hierarchy remains: **1. Rust** (Tauri / Leptos / Dioxus), **2. Elixir** (LiveView), **3. Native application code**.
+3. **Repository Architecture Invariant (Saved in Memory #3254)**: For any future standalone tooling, native desktop wrappers, or dashboards authored _natively_ within `uc-studio` outside the `opencode` fork, the strict stack hierarchy remains: **1. Rust** (Tauri / Leptos / Dioxus), **2. Elixir** (LiveView), **3. Native application code**.
 
 ---
 
 ### 2.4 Security & Read-Only Mutation Gate
 
 Phase 2 is strictly read-only. Write operations and approval dialogs belong exclusively to Phase 3.
+
 - **Route-Level Server Gate**: The server instance must reject any mutation verbs (`POST /session`, prompt injections, tool executions, approval responses) originating from a Phase 2 Web UI client context with **HTTP 403 Forbidden**.
 - **UI Omission**: The frontend interface must omit input boxes, prompt submit triggers, and mutation buttons.
 
@@ -70,6 +73,7 @@ Phase 2 is strictly read-only. Write operations and approval dialogs belong excl
 ### 2.5 External App Representation (`UcsExternalApp`)
 
 The frontend must parse the `integrations` block from `GET /ucs/work` and render a dedicated status card for connected workspace adapters (e.g. Unity SuperMCP bridge), displaying:
+
 - Adapter ID & engine type (`unity`, `blender`, `xcode`).
 - Connection liveness (online, offline, standby).
 - Engine runtime state (playmode, compilation, modal blocked).

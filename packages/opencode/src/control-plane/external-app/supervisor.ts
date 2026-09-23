@@ -1,8 +1,4 @@
-import type {
-  UcsExternalAppAdapter,
-  UcsExternalAppFailure,
-  UcsExternalAppSnapshot,
-} from "@ucs/contracts/external-app"
+import type { UcsExternalAppAdapter, UcsExternalAppFailure, UcsExternalAppSnapshot } from "@ucs/contracts/external-app"
 import { Duration, Effect, Schedule } from "effect"
 
 /**

@@ -116,21 +116,18 @@ const layer = Layer.effect(
     return Service.of({
       attach,
       attachRegistered: (options?: AttachOptions) =>
-        registry
-          .list()
-          .pipe(
-            Effect.flatMap((registrations) =>
-              Effect.forEach(registrations, (registration) => attach(registration.adapter.appId, options), {
-                discard: true,
-              }),
-            ),
+        registry.list().pipe(
+          Effect.flatMap((registrations) =>
+            Effect.forEach(registrations, (registration) => attach(registration.adapter.appId, options), {
+              discard: true,
+            }),
           ),
+        ),
       capabilitiesChanged: (appId, capabilities) =>
         events.publish(ExternalAppEvent.CapabilitiesChanged, { appId, capabilities }).pipe(Effect.asVoid),
       checkpointResult: (appId, result) =>
         events.publish(ExternalAppEvent.CheckpointResult, { appId, result }).pipe(Effect.asVoid),
-      progress: (appId, progress) =>
-        events.publish(ExternalAppEvent.Progress, { appId, progress }).pipe(Effect.asVoid),
+      progress: (appId, progress) => events.publish(ExternalAppEvent.Progress, { appId, progress }).pipe(Effect.asVoid),
     })
   }),
 )

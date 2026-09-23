@@ -67,9 +67,7 @@ export const Flag = {
     overrides["OPENCODE_DISABLE_TERMINAL_TITLE"] = value
   },
   get OPENCODE_SHOW_TTFD() {
-    return "OPENCODE_SHOW_TTFD" in overrides
-      ? overrides["OPENCODE_SHOW_TTFD"]
-      : truthy("OPENCODE_SHOW_TTFD")
+    return "OPENCODE_SHOW_TTFD" in overrides ? overrides["OPENCODE_SHOW_TTFD"] : truthy("OPENCODE_SHOW_TTFD")
   },
   set OPENCODE_SHOW_TTFD(value: boolean | undefined) {
     overrides["OPENCODE_SHOW_TTFD"] = value
@@ -99,9 +97,7 @@ export const Flag = {
     overrides["OPENCODE_DISABLE_MOUSE"] = value
   },
   get OPENCODE_FAKE_VCS() {
-    return "OPENCODE_FAKE_VCS" in overrides
-      ? overrides["OPENCODE_FAKE_VCS"]
-      : process.env["OPENCODE_FAKE_VCS"]
+    return "OPENCODE_FAKE_VCS" in overrides ? overrides["OPENCODE_FAKE_VCS"] : process.env["OPENCODE_FAKE_VCS"]
   },
   set OPENCODE_FAKE_VCS(value: string | undefined) {
     overrides["OPENCODE_FAKE_VCS"] = value
@@ -134,17 +130,13 @@ export const Flag = {
   OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT:
     copy === undefined ? process.platform === "win32" : truthy("OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT"),
   get OPENCODE_MODELS_URL() {
-    return "OPENCODE_MODELS_URL" in overrides
-      ? overrides["OPENCODE_MODELS_URL"]
-      : process.env["OPENCODE_MODELS_URL"]
+    return "OPENCODE_MODELS_URL" in overrides ? overrides["OPENCODE_MODELS_URL"] : process.env["OPENCODE_MODELS_URL"]
   },
   set OPENCODE_MODELS_URL(value: string | undefined) {
     overrides["OPENCODE_MODELS_URL"] = value
   },
   get OPENCODE_MODELS_PATH() {
-    return "OPENCODE_MODELS_PATH" in overrides
-      ? overrides["OPENCODE_MODELS_PATH"]
-      : process.env["OPENCODE_MODELS_PATH"]
+    return "OPENCODE_MODELS_PATH" in overrides ? overrides["OPENCODE_MODELS_PATH"] : process.env["OPENCODE_MODELS_PATH"]
   },
   set OPENCODE_MODELS_PATH(value: string | undefined) {
     overrides["OPENCODE_MODELS_PATH"] = value

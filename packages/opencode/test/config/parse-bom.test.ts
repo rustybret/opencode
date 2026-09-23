@@ -9,7 +9,8 @@ describe("ConfigParse.jsonc", () => {
   })
 
   test("parses jsonc with leading UTF-8 BOM (\\uFEFF)", () => {
-    const rawWithBom = '\uFEFF{\n  // PowerShell 5.1 BOM\n  "model": "anthropic/claude-3-5-sonnet",\n  "snapshot": false\n}'
+    const rawWithBom =
+      '\uFEFF{\n  // PowerShell 5.1 BOM\n  "model": "anthropic/claude-3-5-sonnet",\n  "snapshot": false\n}'
     const result = ConfigParse.jsonc(rawWithBom, "opencode.jsonc")
     expect(result).toEqual({
       model: "anthropic/claude-3-5-sonnet",

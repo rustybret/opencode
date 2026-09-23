@@ -76,8 +76,7 @@ export function createUnitySuperMcpAdapter(config: UnitySuperMcpAdapterConfig = 
   /** Project pinned by a successful `connect`; once set, multi-instance is resolved, not ambiguous. */
   let pinned: string | undefined
 
-  const readStatus = () =>
-    client.callTool(UNITY_TOOLS.status).pipe(Effect.flatMap((raw) => decodeBridgeStatus(raw)))
+  const readStatus = () => client.callTool(UNITY_TOOLS.status).pipe(Effect.flatMap((raw) => decodeBridgeStatus(raw)))
 
   const snapshotOf = (status: BridgeStatus): UcsExternalAppSnapshot => {
     const blockage = deriveBlockage(status, pinned)
@@ -97,7 +96,9 @@ export function createUnitySuperMcpAdapter(config: UnitySuperMcpAdapterConfig = 
     }
   }
 
-  const connect = (params?: UcsExternalAppConnectParams): Effect.Effect<UcsExternalAppSnapshot, UcsExternalAppFailure> =>
+  const connect = (
+    params?: UcsExternalAppConnectParams,
+  ): Effect.Effect<UcsExternalAppSnapshot, UcsExternalAppFailure> =>
     Effect.gen(function* () {
       lifecycle = "connecting"
       cachedCapabilities = undefined

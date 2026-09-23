@@ -4,10 +4,7 @@ import { errorMessage } from "@opencode-ai/tui/util/error"
 import { validateSession } from "../tui/validate-session"
 import { ServerAuth } from "@/server/auth"
 
-export function resolveAttachUrl(
-  input?: string,
-  config?: { server?: { hostname?: string; port?: number } },
-): string {
+export function resolveAttachUrl(input?: string, config?: { server?: { hostname?: string; port?: number } }): string {
   const defaultHostname = config?.server?.hostname || "127.0.0.1"
   const defaultPort = config?.server?.port || 4096
 

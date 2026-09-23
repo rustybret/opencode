@@ -30,9 +30,7 @@ const layer = Layer.effectDiscard(
     // owns that adapter, which is a composition mistake, not a request failure.
     yield* registry
       .register(createUnitySuperMcpAdapter({ appId: "unity", name: "Unity SuperMCP" }))
-      .pipe(
-        Effect.catch((error) => Effect.logWarning("external app registration skipped", { appId: error.appId })),
-      )
+      .pipe(Effect.catch((error) => Effect.logWarning("external app registration skipped", { appId: error.appId })))
   }),
 )
 
