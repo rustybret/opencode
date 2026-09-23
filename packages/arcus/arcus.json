@@ -3,6 +3,7 @@
   "package_id": "opencode",
   "software_type": "cli",
   "source_id": "arcus",
+  "gateway": "https://arcus-auth.rustybret.com",
   "channel": "stable",
   "binary_name": "opencode",
   "format": "tar.zst"
