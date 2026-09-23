@@ -1,0 +1,7 @@
+{
+  "$schema": "https://arcus.rustybret.com/schemas/arcus-project.schema.json",
+  "package_id": "example-project",
+  "software_type": "source_snapshot",
+  "channel": "stable",
+  "source_id": "arcus"
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "file://~/.config/arcus/manifests/schema.json",
+  "package_id": "opencode",
+  "software_type": "cli",
+  "source_id": "arcus",
+  "channel": "stable",
+  "binary_name": "opencode",
+  "format": "tar.zst"
+}

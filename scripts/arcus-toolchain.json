@@ -1,17 +1,1 @@
-{
-  "schema": "arcus/publisher-toolchain@1",
-  "toolchain_version": "0.4.0",
-  "loom": {
-    "bundle": "arcus-prep",
-    "bundle_version": "0.1.0",
-    "manifest_sha256": "9a315d2bf86dd5f159bd4b484965160bce5f56ea7b7ca2d62ff93527929908c3",
-    "sources_lock_sha256": "63051b69a6a6bca0886129c8fee98bc07b5822060d5afdb77b7c12a28ef69b94"
-  },
-  "scripts": [
-    {"name": "pack-arcus.sh", "toolchain_version": "0.4.0", "loom_bundle_version": "0.1.0"},
-    {"name": "sign-arcus.sh", "toolchain_version": "0.4.0", "loom_bundle_version": "0.1.0"},
-    {"name": "validate-arcus.sh", "toolchain_version": "0.4.0", "loom_bundle_version": "0.1.0"},
-    {"name": "publish-arcus.sh", "toolchain_version": "0.4.0", "loom_bundle_version": "0.1.0"},
-    {"name": "migrate-arcus.sh", "toolchain_version": "0.4.0", "loom_bundle_version": "0.1.0"}
-  ]
-}
+../packages/arcus/toolchain/scripts/arcus-toolchain.json

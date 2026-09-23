@@ -37,16 +37,22 @@ The canonical distribution pipeline for OpenCode native binaries is fully automa
 3. **Arcus Manifest Publication**: Cloudhome's `stamp-arcus-manifest.js` job verifies downloaded asset hashes and commits `manifests/opencode/v<version>.json` to `rustybret/arcus`, and `uc-studio` blesses the composition in `arcus-blessed-plugins.json`.
 4. **Local Consumption**: Developer workstations update via `opencode upgrade` / `upgradeFromArcus()` or `arcus pull`.
 
-*Note: The legacy local macOS launchd job at `~/opencode-release-watch/` has been disabled and deprecated in favor of this hosted pipeline. `~/opencode-release-watch/` is retained only as an offline emergency fallback for manual testing.*
+_Note: The legacy local macOS launchd job at `~/opencode-release-watch/` has been disabled and deprecated in favor of this hosted pipeline. `~/opencode-release-watch/` is retained only as an offline emergency fallback for manual testing._
 
 ### Arcus Fleet Governance & Packaging Standard (Archetype A: Upstream Fork)
 
 OpenCode follows the Arcus Archetype A (Upstream Fork) packaging standard for fleet governance and distribution:
 
-- **Package Identity**: Declared in the root `arcus.json` manifest with `package_id` `"opencode"`, `software_type` `"cli"`, binary `"opencode"`, and format `"tar.zst"`.
-- **Versioning**: The repository's `package.json` files mirror upstream plain SemVer (`<upstream_semver>`). Arcus release manifests use `<upstream_semver>-<sequence>`, where `<sequence>` is an integer incremented on every fork build or packaging pass.
-- **Changelog Convention**: Partition notes into `[Upstream Changes]` and `[Arcus/Internal Modifications]`.
-- **Executable Bits**: Enforce `0755` / `0o111` across all 5 canonical targets (`darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `win32-x64`).
+- **Package Identity**: Declared in `arcus.json` and `packages/arcus/arcus.json` with `package_id` `"opencode"`, `software_type` `"cli"`, binary `"opencode"`, and format `"tar.zst"`.
+- **Directory Hierarchy**: All packaging outputs are emitted into a clean `dist/<version>/<sequence>/opencode/` hierarchy as an immutable submission bundle containing `release.json`, `release.index-policy.json`, `assets.sha256`, `submission.json`, `toolchain.json`, and all 5 platform archives (`darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`, `windows-x64`). Legacy `dist-arcus/` directories are strictly prohibited.
+- **Consumer Bootstrap**: Toolchain is bootstrapped via `sh packages/arcus/bootstrap.sh`, which installs `arcus-publisher` and symlinks `packages/arcus/toolchain`. Direct writes to Arcus checkouts and git submodules (`submodules/arcus`) are strictly retired.
+- **Publication & Submission**:
+  - `bun run package:arcus`: Packs all 5 platform targets into `dist/<version>/<sequence>/opencode/`.
+  - `arcus publish submit --bundle dist/<version>/<sequence>/opencode --gateway https://arcus-auth.rustybret.com`: Submits the immutable bundle to the gateway.
+  - `arcus publish status`: Queries submission status and verification diagnostics.
+- **Versioning**: The repository's `package.json` files mirror upstream plain SemVer (`<upstream_semver>`). Arcus release envelopes use `<upstream_semver>-<sequence>`, where `<sequence>` is an integer incremented on every packaging pass.
+- **Distinct Digest Triples**: Every archive strictly enforces `archive_sha256 != content_source_sha256 != tree_signature_sha256`.
+- **Executable Bits**: Enforce `0755` / `0o111` across all 5 canonical targets (`darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`, `windows-x64`).
 
 ### Deployment policy: snapshots disabled by default
 
