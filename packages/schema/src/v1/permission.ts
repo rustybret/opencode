@@ -24,6 +24,9 @@ export type Rule = typeof Rule.Type
 export const Ruleset = Schema.Array(Rule).annotate({ identifier: "PermissionRuleset" })
 export type Ruleset = typeof Ruleset.Type
 
+export const Scope = Schema.Literals(["session", "instance"]).annotate({ identifier: "PermissionScope" })
+export type Scope = typeof Scope.Type
+
 export const Request = Schema.Struct({
   id: ID,
   sessionID: SessionID,
@@ -32,6 +35,7 @@ export const Request = Schema.Struct({
   metadata: Schema.Record(Schema.String, Schema.Unknown),
   always: Schema.Array(Schema.String),
   tool: Schema.optional(Schema.Struct({ messageID: Schema.String, callID: Schema.String })),
+  scope: Schema.optional(Scope),
 }).annotate({ identifier: "PermissionRequest" })
 export type Request = typeof Request.Type
 

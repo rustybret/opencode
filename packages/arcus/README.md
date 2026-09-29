@@ -18,6 +18,7 @@ sh packages/arcus/bootstrap.sh
 ```
 
 This will:
+
 1. Verify `arcus` CLI is installed and available on `PATH`.
 2. Install or update the `arcus-publisher` package (`arcus install arcus-publisher`).
 3. Symlink `packages/arcus/toolchain` to the Arcus installation directory.

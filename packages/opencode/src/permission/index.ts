@@ -6,6 +6,7 @@ import { Deferred, Effect, Layer, Context } from "effect"
 import os from "os"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { EventV2Bridge } from "@/event-v2-bridge"
+import { SessionID } from "@/session/schema"
 
 export const Event = PermissionV1.Event
 
@@ -22,7 +23,7 @@ interface PendingEntry {
 
 interface State {
   pending: Map<PermissionV1.ID, PendingEntry>
-  approved: PermissionV1.Rule[]
+  approved: (PermissionV1.Rule & { sessionID?: SessionID })[]
 }
 
 export function evaluate(permission: string, pattern: string, ...rulesets: PermissionV1.Ruleset[]): PermissionV1.Rule {
@@ -69,8 +70,12 @@ const layer = Layer.effect(
       const { ruleset, ...request } = input
       let needsAsk = false
 
+      const relevantApproved = approved.filter(
+        (rule) => !rule.sessionID || rule.sessionID === request.sessionID,
+      )
+
       for (const pattern of request.patterns) {
-        const rule = evaluate(request.permission, pattern, ruleset, approved)
+        const rule = evaluate(request.permission, pattern, ruleset, relevantApproved)
         yield* Effect.logInfo("evaluated", { permission: request.permission, pattern, action: rule })
         if (rule.action === "deny") {
           return yield* new PermissionV1.DeniedError({
@@ -84,6 +89,11 @@ const layer = Layer.effect(
       if (!needsAsk) return
 
       const id = request.id ?? PermissionV1.ID.ascending()
+      const scope =
+        request.scope ??
+        (request.metadata?.scope === "session" || request.metadata?.scope === "instance"
+          ? request.metadata.scope
+          : undefined)
       const info: PermissionV1.Request = {
         id,
         sessionID: request.sessionID,
@@ -92,6 +102,7 @@ const layer = Layer.effect(
         metadata: request.metadata,
         always: request.always,
         tool: request.tool,
+        scope,
       }
       yield* Effect.logInfo("asking", { id, permission: info.permission, patterns: info.patterns })
 
@@ -147,13 +158,17 @@ const layer = Layer.effect(
           permission: existing.info.permission,
           pattern,
           action: "allow",
+          ...(existing.info.scope === "session" ? { sessionID: existing.info.sessionID } : {}),
         })
       }
 
       for (const [id, item] of pending.entries()) {
         if (item.info.sessionID !== existing.info.sessionID) continue
+        const relevantApproved = approved.filter(
+          (rule) => !rule.sessionID || rule.sessionID === item.info.sessionID,
+        )
         const ok = item.info.patterns.every(
-          (pattern) => evaluate(item.info.permission, pattern, approved).action === "allow",
+          (pattern) => evaluate(item.info.permission, pattern, relevantApproved).action === "allow",
         )
         if (!ok) continue
         pending.delete(id)

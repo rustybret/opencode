@@ -19,11 +19,12 @@ export type ToolContext = {
   ask(input: AskInput): Promise<void>
 }
 
-type AskInput = {
+export type AskInput = {
   permission: string
   patterns: string[]
   always: string[]
   metadata: { [key: string]: any }
+  scope?: "session" | "instance"
 }
 
 export type ToolAttachment = {

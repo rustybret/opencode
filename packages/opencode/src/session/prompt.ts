@@ -16,6 +16,7 @@ import { SessionCompaction } from "./compaction"
 import { SystemPrompt } from "./system"
 import { Instruction } from "./instruction"
 import { Plugin } from "../plugin"
+import type { AskInput } from "@opencode-ai/plugin"
 import { MAX_STEPS_PROMPT } from "@opencode-ai/core/session/runner/max-steps"
 import { ToolRegistry } from "@/tool/registry"
 import { MCP } from "../mcp"
@@ -48,6 +49,7 @@ import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
+import { EffectBridge } from "@/effect/bridge"
 import { Database } from "@opencode-ai/core/database/database"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { ProviderV2 } from "@opencode-ai/core/provider"
@@ -152,6 +154,12 @@ const layer = Layer.effect(
     const cancel = Effect.fn("SessionPrompt.cancel")(function* (sessionID: SessionID) {
       yield* Effect.logInfo("cancel", { "session.id": sessionID })
       yield* state.cancel(sessionID)
+      const pending = yield* permission.list()
+      for (const item of pending) {
+        if (item.sessionID === sessionID) {
+          yield* permission.reply({ requestID: item.id, reply: "reject" }).pipe(Effect.ignore)
+        }
+      }
     })
 
     const resolvePromptParts = Effect.fn("SessionPrompt.resolvePromptParts")(function* (template: string) {
@@ -633,6 +641,7 @@ const layer = Layer.effect(
     })
 
     const createUserMessage = Effect.fn("SessionPrompt.createUserMessage")(function* (input: PromptInput) {
+      const bridge = yield* EffectBridge.make()
       const agentName = input.agent
       const ag = agentName ? yield* agents.get(agentName) : yield* agents.defaultInfo()
       if (!ag) {
@@ -1004,6 +1013,16 @@ const layer = Layer.effect(
           model: input.model,
           messageID: input.messageID,
           variant: input.variant,
+          ask: (req: AskInput) =>
+            bridge.promise(
+              permission.ask({
+                ...req,
+                sessionID: input.sessionID,
+                always: req.always ?? req.patterns ?? [],
+                ruleset: Permission.merge(ag.permission ?? [], current.permission ?? []),
+                scope: req.scope ?? "session",
+              }),
+            ),
         },
         { message: info, parts: resolvedParts },
       )
