@@ -1011,7 +1011,7 @@ const layer = Layer.effect(
           sessionID: input.sessionID,
           agent: input.agent,
           model: input.model,
-          messageID: input.messageID,
+          messageID: info.id,
           variant: input.variant,
           ask: (req: AskInput) =>
             bridge.promise(
@@ -1019,7 +1019,9 @@ const layer = Layer.effect(
                 ...req,
                 sessionID: input.sessionID,
                 always: req.always ?? req.patterns ?? [],
-                ruleset: Permission.merge(ag.permission ?? [], current.permission ?? []),
+                ruleset: Permission.merge(ag.permission ?? [], current.permission ?? []).filter(
+                  (r) => r.permission !== "*",
+                ),
                 scope: req.scope ?? "session",
               }),
             ),
