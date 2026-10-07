@@ -3,7 +3,6 @@ import { dict as en } from "./en"
 
 export const dict = {
   ...en,
-  "go.promo.spaceBunny": "Space Bunny Free, un nuevo modelo anónimo, está disponible por tiempo limitado",
   "go.referral.ended.label": "Advertencia",
   "go.referral.ended":
     "El programa de referidos ha terminado. Los enlaces de referido ya no otorgan crédito ni a ti ni a quien los compartió.",
@@ -824,6 +823,14 @@ export const dict = {
   "enterprise.form.email.placeholder": "jeff@amazon.com",
   "enterprise.form.phone.label": "Teléfono",
   "enterprise.form.phone.placeholder": "+1 234 567 8900",
+  "enterprise.form.inferenceSpend.label": "¿Cuál es el gasto mensual actual de tu empresa en inferencia (USD)?",
+  "enterprise.form.inferenceSpend.placeholder": "Selecciona un rango (opcional)",
+  "enterprise.form.inferenceSpend.none": "Aún sin gasto",
+  "enterprise.form.inferenceSpend.under1k": "Menos de $1K",
+  "enterprise.form.inferenceSpend.1kTo10k": "$1K–$10K",
+  "enterprise.form.inferenceSpend.10kTo50k": "$10K–$50K",
+  "enterprise.form.inferenceSpend.50kTo100k": "$50K–$100K",
+  "enterprise.form.inferenceSpend.over100k": "$100K o más",
   "enterprise.form.message.label": "¿Qué problema estás intentando resolver?",
   "enterprise.form.message.placeholder": "Necesitamos ayuda con...",
   "enterprise.form.send": "Enviar",
@@ -832,6 +839,7 @@ export const dict = {
   "enterprise.form.success.submitted": "Formulario enviado con éxito.",
   "enterprise.form.error.allFieldsRequired": "Todos los campos son obligatorios.",
   "enterprise.form.error.invalidEmailFormat": "Formato de correo inválido.",
+  "enterprise.form.error.invalidInferenceSpend": "Selecciona un rango de gasto en inferencia válido.",
   "enterprise.form.error.internalServer": "Error interno del servidor.",
   "enterprise.faq.title": "FAQ",
   "enterprise.faq.q1": "¿Qué es OpenCode Enterprise?",

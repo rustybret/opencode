@@ -1,5 +1,4 @@
 export const dict = {
-  "go.promo.spaceBunny": "Space Bunny Free, a new anonymous model, is available for a limited time",
   "go.referral.ended.label": "Warning",
   "go.referral.ended":
     "The referral program has ended. Referral links no longer earn credit for you or the person who shared them.",
@@ -818,6 +817,14 @@ export const dict = {
   "enterprise.form.email.placeholder": "jeff@amazon.com",
   "enterprise.form.phone.label": "Phone number",
   "enterprise.form.phone.placeholder": "+1 234 567 8900",
+  "enterprise.form.inferenceSpend.label": "What is your company's current monthly inference spend (USD)?",
+  "enterprise.form.inferenceSpend.placeholder": "Select a range (optional)",
+  "enterprise.form.inferenceSpend.none": "Not spending yet",
+  "enterprise.form.inferenceSpend.under1k": "Under $1K",
+  "enterprise.form.inferenceSpend.1kTo10k": "$1K–$10K",
+  "enterprise.form.inferenceSpend.10kTo50k": "$10K–$50K",
+  "enterprise.form.inferenceSpend.50kTo100k": "$50K–$100K",
+  "enterprise.form.inferenceSpend.over100k": "$100K or more",
   "enterprise.form.message.label": "What problem are you trying to solve?",
   "enterprise.form.message.placeholder": "We need help with...",
   "enterprise.form.send": "Send",
@@ -826,6 +833,7 @@ export const dict = {
   "enterprise.form.success.submitted": "Form submitted successfully.",
   "enterprise.form.error.allFieldsRequired": "All fields are required.",
   "enterprise.form.error.invalidEmailFormat": "Invalid email format.",
+  "enterprise.form.error.invalidInferenceSpend": "Select a valid inference spend range.",
   "enterprise.form.error.internalServer": "Internal server error.",
   "enterprise.faq.title": "FAQ",
   "enterprise.faq.q1": "What is OpenCode Enterprise?",
