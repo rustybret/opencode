@@ -1,1 +1,0 @@
-../packages/arcus/toolchain/scripts/migrate-arcus.sh

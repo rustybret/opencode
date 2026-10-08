@@ -1,1 +1,0 @@
-../packages/arcus/toolchain/scripts/pack-arcus.sh

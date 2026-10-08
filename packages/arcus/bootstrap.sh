@@ -64,13 +64,7 @@ fi
 mkdir -p "${REPO_ROOT}/packages/arcus"
 ln -sfn "${PUBLISHER_DIR}" "${REPO_ROOT}/packages/arcus/toolchain"
 
-# 5. Create skill symlink under .opencode/skills
-mkdir -p "${REPO_ROOT}/.opencode/skills"
-ln -sfn "../../packages/arcus/toolchain/skill" "${REPO_ROOT}/.opencode/skills/arcus-publisher"
-
-echo "==> Symlinks created:"
-echo "    packages/arcus/toolchain -> ${PUBLISHER_DIR}"
-echo "    .opencode/skills/arcus-publisher -> ../../packages/arcus/toolchain/skill"
+echo "==> Toolchain symlink created: packages/arcus/toolchain -> ${PUBLISHER_DIR}"
 
 # 6. Validate installed toolchain if available
 if [ -d "${REPO_ROOT}/packages/arcus/toolchain/scripts" ]; then
