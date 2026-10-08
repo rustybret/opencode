@@ -1,9 +1,10 @@
 {
   "$schema": "file://~/.config/arcus/manifests/schema.json",
   "package_id": "opencode-desktop",
-  "software_type": "cli",
+  "software_type": "game",
   "source_id": "arcus",
+  "gateway": "https://arcus-auth.rustybret.com",
   "channel": "stable",
-  "binary_name": "opencode-desktop",
+  "binary_name": "OpenCode",
   "format": "tar.zst"
 }
