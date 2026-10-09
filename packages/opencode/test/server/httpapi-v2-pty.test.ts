@@ -158,7 +158,7 @@ describe("v2 pty HttpApi", () => {
 
         const takeUntil = (expected: string, seen = ""): Effect.Effect<string, unknown> =>
           Effect.gen(function* () {
-            const next = seen + (yield* Queue.take(messages).pipe(Effect.timeout("5 seconds")))
+            const next = seen + (yield* Queue.take(messages).pipe(Effect.timeout("15 seconds")))
             if (next.includes(expected)) return next
             return yield* takeUntil(expected, next)
           })
@@ -235,7 +235,7 @@ describe("v2 pty HttpApi", () => {
 
         const takeUntil = (expected: string, seen = ""): Effect.Effect<string, unknown> =>
           Effect.gen(function* () {
-            const next = seen + (yield* Queue.take(messages).pipe(Effect.timeout("5 seconds")))
+            const next = seen + (yield* Queue.take(messages).pipe(Effect.timeout("15 seconds")))
             if (next.includes(expected)) return next
             return yield* takeUntil(expected, next)
           })

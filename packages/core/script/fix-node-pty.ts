@@ -26,3 +26,33 @@ if (process.platform !== "win32") {
     console.log(`fixed node-pty permissions for ${fixed.length} helper${fixed.length === 1 ? "" : "s"}`)
   }
 }
+
+const bunPtyTerminal = path.join(dir, "node_modules", "bun-pty", "src", "terminal.ts")
+if (await fs.stat(bunPtyTerminal).catch(() => undefined)) {
+  let content = await fs.readFile(bunPtyTerminal, "utf-8")
+  if (!content.includes("this._exitEvent")) {
+    content = content
+      .replace(
+        "private readonly _onExit = new EventEmitter<IExitEvent>();",
+        "private readonly _onExit = new EventEmitter<IExitEvent>();\n\tprivate _exitEvent: IExitEvent | null = null;",
+      )
+      .replace(
+        "get onExit() {\n\t\treturn this._onExit.event;\n\t}",
+        "get onExit() {\n\t\treturn (listener: (e: IExitEvent) => void): IDisposable => {\n\t\t\tif (this._exitEvent) {\n\t\t\t\tconst ev = this._exitEvent;\n\t\t\t\tqueueMicrotask(() => listener(ev));\n\t\t\t\treturn { dispose: () => {} };\n\t\t\t}\n\t\t\treturn this._onExit.event(listener);\n\t\t};\n\t}",
+      )
+      .replace(
+        "this._onExit.fire({ exitCode });\n\t\t\t\tbreak;",
+        "this._exitEvent = { exitCode };\n\t\t\t\tthis._onExit.fire(this._exitEvent);\n\t\t\t\tbreak;",
+      )
+      .replace(
+        "} else if (n < 0) {\n\t\t\t\t// error - flush decoder before breaking\n\t\t\t\tconst remaining = this._decoder.decode();\n\t\t\t\tif (remaining) {\n\t\t\t\t\tthis._onData.fire(remaining);\n\t\t\t\t}\n\t\t\t\tbreak;",
+        "} else if (n < 0) {\n\t\t\t\t// error or EOF - flush decoder before breaking\n\t\t\t\tconst remaining = this._decoder.decode();\n\t\t\t\tif (remaining) {\n\t\t\t\t\tthis._onData.fire(remaining);\n\t\t\t\t}\n\t\t\t\tconst exitCode = lib.symbols.bun_pty_get_exit_code(this.handle);\n\t\t\t\tthis._exitEvent = { exitCode: exitCode >= 0 ? exitCode : 0 };\n\t\t\t\tthis._onExit.fire(this._exitEvent);\n\t\t\t\tbreak;",
+      )
+      .replace(
+        "this._onExit.fire({ exitCode: 0, signal });",
+        "if (!this._exitEvent) {\n\t\t\tthis._exitEvent = { exitCode: 0, signal };\n\t\t\tthis._onExit.fire(this._exitEvent);\n\t\t}",
+      )
+    await fs.writeFile(bunPtyTerminal, content, "utf-8")
+    console.log("patched bun-pty to retain exit events and handle EOF")
+  }
+}
