@@ -155,19 +155,28 @@ function scriptConflictResolver(_key: string, _baseVal: any, ourVal: any, theirV
 }
 
 function mergePatchedDependencies(
-  _base: Record<string, string> = {},
+  base: Record<string, string> = {},
   ours: Record<string, string> = {},
   theirs: Record<string, string> = {},
 ): Record<string, string> {
   const result: Record<string, string> = { ...theirs }
   for (const [key, patchPath] of Object.entries(ours || {})) {
-    result[key] = patchPath
+    const inBase = base != null && key in base
+    const baseVal = inBase ? base[key] : undefined
+    // Preserve if fork added this patch or explicitly modified it from base
+    if (!inBase || patchPath !== baseVal) {
+      result[key] = patchPath
+    }
   }
 
   // Remove stale upstream patches if fork bumped to a newer patched version
   // e.g. if ours has @ai-sdk/google@3.0.104, remove stale @ai-sdk/google@3.0.73
-  const ourPackages = new Set(Object.keys(ours || {}).map((k) => k.split("@").slice(0, -1).join("@")))
-  for (const pkgName of ourPackages) {
+  const ourForkPackages = new Set(
+    Object.keys(ours || {})
+      .filter((k) => !(base != null && k in base))
+      .map((k) => k.split("@").slice(0, -1).join("@")),
+  )
+  for (const pkgName of ourForkPackages) {
     const ourKeys = Object.keys(ours || {}).filter((k) => k.startsWith(`${pkgName}@`))
     if (ourKeys.length > 0) {
       for (const k of Object.keys(result)) {
@@ -181,18 +190,27 @@ function mergePatchedDependencies(
   return result
 }
 
-function mergeWorkspaces(base: any, ours: any, theirs: any): any {
+function mergeWorkspaces(base: any, ours: any, theirs: any, rootPatchedDeps: Record<string, string> = {}): any {
   if (Array.isArray(ours) || Array.isArray(theirs)) {
     const ourList = Array.isArray(ours) ? ours : (ours?.packages ?? [])
     const theirList = Array.isArray(theirs) ? theirs : (theirs?.packages ?? [])
     return Array.from(new Set([...theirList, ...ourList]))
   }
   if (typeof ours === "object" || typeof theirs === "object") {
-    return {
+    const merged: any = {
       ...theirs,
       ...ours,
       packages: Array.from(new Set([...(theirs?.packages ?? []), ...(ours?.packages ?? [])])),
     }
+    if (theirs?.catalog || ours?.catalog || base?.catalog) {
+      merged.catalog = mergeDict(
+        base?.catalog,
+        ours?.catalog,
+        theirs?.catalog,
+        (k, b, o, t) => dependencyConflictResolver(k, b, o, t, rootPatchedDeps),
+      )
+    }
+    return merged
   }
   return theirs ?? ours ?? base
 }
@@ -255,7 +273,7 @@ export function mergePackageJson(base: any, ours: any, theirs: any, rootPatchedD
 
   // 8. Workspaces
   if (theirs.workspaces || ours.workspaces || base?.workspaces) {
-    result.workspaces = mergeWorkspaces(base?.workspaces, ours.workspaces, theirs.workspaces)
+    result.workspaces = mergeWorkspaces(base?.workspaces, ours.workspaces, theirs.workspaces, rootPatchedDeps)
   }
 
   // 9. Overrides & resolutions

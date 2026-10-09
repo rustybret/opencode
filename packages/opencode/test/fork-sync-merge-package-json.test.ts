@@ -139,4 +139,74 @@ describe("fork-sync-merge-package-json", () => {
     expect(merged.patchedDependencies["@ai-sdk/google@3.0.73"]).toBeUndefined()
     expect(merged.patchedDependencies["@ai-sdk/mistral@3.0.51"]).toBe("patches/@ai-sdk%2Fmistral@3.0.51.patch")
   })
+
+  test("takes upstream catalog advancements while preserving fork-added catalog entries", () => {
+    const base = {
+      workspaces: {
+        packages: ["packages/*"],
+        catalog: {
+          effect: "4.0.0-beta.80",
+          ai: "3.0.0",
+        },
+      },
+    }
+
+    const ours = {
+      workspaces: {
+        packages: ["packages/*"],
+        catalog: {
+          effect: "4.0.0-beta.80",
+          ai: "3.0.0",
+          "@ucs/contracts": "workspace:*",
+        },
+      },
+    }
+
+    const theirs = {
+      workspaces: {
+        packages: ["packages/*"],
+        catalog: {
+          effect: "4.0.0-beta.85",
+          ai: "3.0.0",
+          zod: "^3.23.0",
+        },
+      },
+    }
+
+    const merged = mergePackageJson(base, ours, theirs)
+
+    expect(merged.workspaces.catalog["effect"]).toBe("4.0.0-beta.85")
+    expect(merged.workspaces.catalog["zod"]).toBe("^3.23.0")
+    expect(merged.workspaces.catalog["@ucs/contracts"]).toBe("workspace:*")
+  })
+
+  test("takes upstream patch bump without resurrecting old shared patch", () => {
+    const base = {
+      patchedDependencies: {
+        "@ai-sdk/anthropic@3.0.111": "patches/@ai-sdk%2Fanthropic@3.0.111.patch",
+        "@ai-sdk/google@3.0.73": "patches/@ai-sdk%2Fgoogle@3.0.73.patch",
+      },
+    }
+
+    const ours = {
+      patchedDependencies: {
+        "@ai-sdk/anthropic@3.0.111": "patches/@ai-sdk%2Fanthropic@3.0.111.patch",
+        "@ai-sdk/google@3.0.104": "patches/@ai-sdk%2Fgoogle@3.0.104.patch",
+      },
+    }
+
+    const theirs = {
+      patchedDependencies: {
+        "@ai-sdk/anthropic@3.0.120": "patches/@ai-sdk%2Fanthropic@3.0.120.patch",
+        "@ai-sdk/google@3.0.73": "patches/@ai-sdk%2Fgoogle@3.0.73.patch",
+      },
+    }
+
+    const merged = mergePackageJson(base, ours, theirs)
+
+    expect(merged.patchedDependencies["@ai-sdk/anthropic@3.0.120"]).toBe("patches/@ai-sdk%2Fanthropic@3.0.120.patch")
+    expect(merged.patchedDependencies["@ai-sdk/anthropic@3.0.111"]).toBeUndefined()
+    expect(merged.patchedDependencies["@ai-sdk/google@3.0.104"]).toBe("patches/@ai-sdk%2Fgoogle@3.0.104.patch")
+    expect(merged.patchedDependencies["@ai-sdk/google@3.0.73"]).toBeUndefined()
+  })
 })
