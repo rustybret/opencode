@@ -1,163 +1,89 @@
 /** @jsxImportSource @opentui/solid */
-import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
-import { createBindingLookup } from "@opentui/keymap/extras"
-import { testRender, useRenderer } from "@opentui/solid"
+import { testRender } from "@opentui/solid"
 import { expect, test } from "bun:test"
-import { onCleanup } from "solid-js"
-import { TuiKeybind } from "../src/config/keybind"
-import { OpencodeKeymapProvider, registerOpencodeKeymap, useCommandSlashes } from "../src/keymap"
-import { createCommandShim } from "../src/plugin/command-shim"
+import { ConfigProvider } from "../src/config"
+import { Keymap } from "../src/context/keymap"
+import { createTuiResolvedConfig } from "./fixture/tui-runtime"
 
-function createResolvedKeymapConfig(input: TuiKeybind.KeybindOverrides = {}) {
-  const keybinds = TuiKeybind.parse(input)
-  return {
-    keybinds: createBindingLookup(TuiKeybind.toBindingConfig(keybinds), {
-      commandMap: TuiKeybind.CommandMap,
-      bindingDefaults: TuiKeybind.bindingDefaults(),
-    }),
-    leader_timeout: 2000,
-  }
-}
+/**
+ * `useCommands` is the seam the prompt's slash completion reads. It must expose
+ * each command's declared `slash` payload (name plus aliases) so autocomplete can
+ * expand it, and must leave commands without a slash unmarked so they never appear.
+ */
 
-test("commands registered via modern api.keymap.registerLayer surface in useCommandSlashes", async () => {
-  let slashesList: ReturnType<ReturnType<typeof useCommandSlashes>> = []
+test("useCommands exposes declared slash names and aliases", async () => {
+  let commands = () => [] as ReturnType<ReturnType<typeof Keymap.useCommands>>
 
   function Harness() {
-    const renderer = useRenderer()
-    const keymap = createDefaultOpenTuiKeymap(renderer)
-    const config = createResolvedKeymapConfig()
-    const offKeymap = registerOpencodeKeymap(keymap, renderer, config)
-
-    const offLayer = keymap.registerLayer({
+    Keymap.createLayer(() => ({
       commands: [
         {
-          name: "custom.plugin.diff",
+          id: "custom.plugin.diff",
           title: "View custom diff",
-          slashName: "custom-diff",
-          slashAliases: ["cdiff"],
+          description: "Shows the plugin diff",
+          slash: { name: "custom-diff", aliases: ["cdiff"] },
           run() {},
         },
         {
-          name: "custom.plugin.slash_object",
+          id: "custom.plugin.slash_object",
           title: "Custom Slash Object",
-          slash: {
-            name: "cslash",
-            aliases: ["cs"],
-          },
+          slash: { name: "cslash", aliases: ["cs"] },
           run() {},
         },
         {
-          name: "internal.key.only",
+          id: "internal.key.only",
           title: "Internal action",
           run() {},
         },
       ],
-    })
+    }))
 
-    function Consumer() {
-      const slashes = useCommandSlashes()
-      slashesList = slashes()
-      return <box />
-    }
-
-    onCleanup(() => {
-      offLayer()
-      offKeymap()
-    })
-
-    return (
-      <OpencodeKeymapProvider keymap={keymap}>
-        <Consumer />
-      </OpencodeKeymapProvider>
-    )
+    const reachable = Keymap.useCommands()
+    commands = () => reachable()
+    return <box />
   }
 
-  const app = await testRender(() => <Harness />)
+  const app = await testRender(() => (
+    <ConfigProvider config={createTuiResolvedConfig()}>
+      <Keymap.Provider>
+        <Harness />
+      </Keymap.Provider>
+    </ConfigProvider>
+  ))
   try {
-    expect(slashesList.map((s) => s.display)).toContain("/custom-diff")
-    expect(slashesList.map((s) => s.display)).toContain("/cslash")
-    expect(slashesList.map((s) => s.display)).not.toContain("/internal.key.only")
+    const byId = new Map(commands().map((command) => [command.id, command]))
 
-    const diffSlash = slashesList.find((s) => s.display === "/custom-diff")
-    expect(diffSlash?.aliases).toEqual(["/cdiff"])
-    expect(diffSlash?.description).toBe("View custom diff")
+    expect(byId.get("custom.plugin.diff")?.slash).toEqual({ name: "custom-diff", aliases: ["cdiff"] })
+    expect(byId.get("custom.plugin.diff")?.title).toBe("View custom diff")
+    expect(byId.get("custom.plugin.diff")?.description).toBe("Shows the plugin diff")
 
-    const slashObj = slashesList.find((s) => s.display === "/cslash")
-    expect(slashObj?.aliases).toEqual(["/cs"])
-    expect(slashObj?.description).toBe("Custom Slash Object")
+    expect(byId.get("custom.plugin.slash_object")?.slash).toEqual({ name: "cslash", aliases: ["cs"] })
+    expect(byId.get("custom.plugin.slash_object")?.description).toBeUndefined()
+
+    // A command without a slash must stay unmarked so autocomplete skips it entirely.
+    expect(byId.get("internal.key.only")?.slash).toBeUndefined()
   } finally {
     app.renderer.destroy()
   }
 })
 
-test("commands registered via legacy api.command.register surface in useCommandSlashes", async () => {
-  let slashesList: ReturnType<ReturnType<typeof useCommandSlashes>> = []
-
+test("useCommands rejects a slash command without an id", async () => {
   function Harness() {
-    const renderer = useRenderer()
-    const keymap = createDefaultOpenTuiKeymap(renderer)
-    const config = createResolvedKeymapConfig()
-    const offKeymap = registerOpencodeKeymap(keymap, renderer, config)
-
-    const fakeDialog = {
-      stack: [],
-      replace() {},
-      clear() {},
-      setSize() {},
-      size: "medium" as const,
-    }
-
-    const commandApi = createCommandShim(keymap, fakeDialog, config.keybinds)!
-
-    const offLegacy = commandApi.register(() => [
-      {
-        title: "Legacy Plugin Command",
-        value: "legacy-plugin",
-        description: "Does something in v1 plugin",
-        onSelect() {},
-      },
-      {
-        title: "Legacy Plugin With Slash",
-        value: "legacy-named",
-        description: "Custom slash name in v1",
-        slash: {
-          name: "v1slash",
-          aliases: ["v1s"],
-        },
-        onSelect() {},
-      },
-    ])
-
-    function Consumer() {
-      const slashes = useCommandSlashes()
-      slashesList = slashes()
-      return <box />
-    }
-
-    onCleanup(() => {
-      offLegacy()
-      offKeymap()
-    })
-
-    return (
-      <OpencodeKeymapProvider keymap={keymap}>
-        <Consumer />
-      </OpencodeKeymapProvider>
-    )
+    // `groupCommands` requires an id for slash commands; an id-less slash must throw
+    // rather than silently register an unreachable prompt entry.
+    Keymap.createLayer(() => ({
+      commands: [{ title: "Nameless", slash: { name: "nameless" }, run() {} }],
+    }))
+    return <box />
   }
 
-  const app = await testRender(() => <Harness />)
-  try {
-    expect(slashesList.map((s) => s.display)).toContain("/legacy-plugin")
-    expect(slashesList.map((s) => s.display)).toContain("/v1slash")
-
-    const legacyPlugin = slashesList.find((s) => s.display === "/legacy-plugin")
-    expect(legacyPlugin?.description).toBe("Does something in v1 plugin")
-
-    const legacyWithSlash = slashesList.find((s) => s.display === "/v1slash")
-    expect(legacyWithSlash?.description).toBe("Custom slash name in v1")
-    expect(legacyWithSlash?.aliases).toEqual(["/v1s"])
-  } finally {
-    app.renderer.destroy()
-  }
+  await expect(
+    testRender(() => (
+      <ConfigProvider config={createTuiResolvedConfig()}>
+        <Keymap.Provider>
+          <Harness />
+        </Keymap.Provider>
+      </ConfigProvider>
+    )),
+  ).rejects.toThrow()
 })
