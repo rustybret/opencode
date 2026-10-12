@@ -14,6 +14,7 @@ import {
   Workspace,
 } from "../src/index.js"
 import { EventManifest } from "../src/event-manifest.js"
+import { ExternalAppEvent } from "../src/external-app-event.js"
 import { FileSystemV1 } from "../src/filesystem-v1.js"
 import { McpEvent } from "../src/mcp-event.js"
 import { SessionEvent } from "../src/session-event.js"
@@ -68,7 +69,7 @@ describe("public event manifest", () => {
     expect(EventManifest.Latest.has("mcp.browser.open.failed")).toBe(false)
     expect(EventManifest.Durable.get("session.step.ended.1")).toBe(SessionEvent.Step.Ended)
     expect(EventManifest.Durable.has("session.step.ended.2")).toBe(false)
-
+  })
   test("keeps credential events public, canonical, and ephemeral", () => {
     const credentialID = Credential.ID.make("cred_test")
     const integrationID = Integration.ID.make("integration_test")
@@ -153,7 +154,6 @@ describe("public event manifest", () => {
       ...SessionEvent.Definitions.filter((definition) => definition.durability === "durable"),
       SessionEvent.UsageRecorded,
       SessionEvent.MessageContentUpdated,
->>>>>>> opencode-mirror
     ])
     expect(SessionEvent.UsageRecorded.durability).toBe("durable")
     expect(EventManifest.Durable.get("session.usage.recorded.1")).toBe(SessionEvent.UsageRecorded)

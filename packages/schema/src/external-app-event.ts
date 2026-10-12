@@ -1,8 +1,8 @@
-export * as ExternalAppEvent from "./external-app-event"
+export * as ExternalAppEvent from "./external-app-event.js"
 
 import { Schema } from "effect"
-import { Event } from "./event"
-import { NonNegativeInt, optional } from "./schema"
+import { Event } from "./event.js"
+import { NonNegativeInt, optional } from "./schema.js"
 
 /**
  * EventV2 definitions for `UcsExternalApp` — the integration surface between the
@@ -113,7 +113,7 @@ export const ProgressTick = Schema.Struct({
 }).annotate({ identifier: "ExternalAppEvent.ProgressTick" })
 export interface ProgressTick extends Schema.Schema.Type<typeof ProgressTick> {}
 
-export const StateChanged = Event.define({
+export const StateChanged = Event.durable({
   type: "external-app.state-changed",
   ...options,
   schema: {
@@ -122,7 +122,7 @@ export const StateChanged = Event.define({
   },
 })
 
-export const CapabilitiesChanged = Event.define({
+export const CapabilitiesChanged = Event.durable({
   type: "external-app.capabilities-changed",
   ...options,
   schema: {
@@ -135,7 +135,7 @@ export const CapabilitiesChanged = Event.define({
  * `Schema.NullOr`, not `optional`: a cleared blockage must travel as an explicit
  * `null`, because an absent key in a delta event means "no change" instead.
  */
-export const BlockageChanged = Event.define({
+export const BlockageChanged = Event.durable({
   type: "external-app.blockage-changed",
   ...options,
   schema: {
@@ -144,7 +144,7 @@ export const BlockageChanged = Event.define({
   },
 })
 
-export const CheckpointResult = Event.define({
+export const CheckpointResult = Event.durable({
   type: "external-app.checkpoint-result",
   ...options,
   schema: {
@@ -153,7 +153,7 @@ export const CheckpointResult = Event.define({
   },
 })
 
-export const Progress = Event.define({
+export const Progress = Event.ephemeral({
   type: "external-app.progress",
   schema: {
     appId: Schema.String,
