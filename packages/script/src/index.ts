@@ -44,14 +44,6 @@ const VERSION = await (async () => {
   return `${base}+${hash}`
 })()
 
-function previewBuildNumber() {
-  const runNumber = process.env["GITHUB_RUN_NUMBER"]
-  if (!runNumber) return new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")
-  const runAttempt = process.env["GITHUB_RUN_ATTEMPT"]
-  if (runAttempt && runAttempt !== "1") return `${runNumber}.${runAttempt}`
-  return runNumber
-}
-
 const bot = ["actions-user", "opencode", "opencode-agent[bot]"]
 const teamPath = path.resolve(import.meta.dir, "../../../.github/TEAM_MEMBERS")
 const teamFile = Bun.file(teamPath)
