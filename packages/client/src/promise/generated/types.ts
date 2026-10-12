@@ -256,6 +256,35 @@ export type FormWhen1 = { key: string; op: "eq" | "neq"; value: string | number 
 
 export type FormValue1 = string | number | boolean | Array<string>
 
+export type ExternalAppEventBlockage = {
+  reason:
+    | "modal"
+    | "safe-mode"
+    | "compile-errors-require-human"
+    | "editor-focus-required"
+    | "instance-selection-required"
+  detail?: string
+}
+
+export type ExternalAppEventCapabilities = {
+  version: string
+  actions: Array<{ id: string; name: string; domain: string }>
+  domainTags: Array<string>
+  checkpointSupported: boolean
+}
+
+export type ExternalAppEventCheckpointOutcome =
+  | { _tag: "Created"; checkpointId: string; label: string; createdAt: number }
+  | { _tag: "Unsupported"; reason: string }
+
+export type ExternalAppEventProgressTick = {
+  sequence: number
+  operationId: string
+  progress?: number
+  message: string
+  terminal: boolean
+}
+
 export type SessionStatus =
   | { type: "idle" }
   | {
@@ -822,6 +851,21 @@ export type FormMultiselectField1 = {
 }
 
 export type FormAnswer2 = { [x: string]: FormValue1 }
+
+export type ExternalAppEventSnapshot = {
+  appId: string
+  state: "disconnected" | "connecting" | "connected" | "blocked-on-human" | "busy-streaming" | "error"
+  health: "healthy" | "throttled" | "stalled" | "unreachable"
+  activeMode: "edit" | "play" | "unknown"
+  focused?: boolean
+  backgroundMode?: boolean
+  lastHeartbeatAgeMs?: number
+  modalCount?: number
+  projectPath?: string
+  scenePath?: string
+  blockage?: ExternalAppEventBlockage
+  updatedAt: number
+}
 
 export type VcsInfo = { provider?: string; branch: VcsBranch }
 
@@ -1716,6 +1760,45 @@ export type WebsearchUpdated = {
   data: {}
 }
 
+export type ExternalAppCapabilitiesChanged = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "external-app.capabilities-changed"
+  durable: { aggregateID: string; seq: EventSeq; version: 1 }
+  location?: LocationRef
+  data: { appId: string; capabilities: ExternalAppEventCapabilities }
+}
+
+export type ExternalAppBlockageChanged = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "external-app.blockage-changed"
+  durable: { aggregateID: string; seq: EventSeq; version: 1 }
+  location?: LocationRef
+  data: { appId: string; blockage: ExternalAppEventBlockage | null }
+}
+
+export type ExternalAppCheckpointResult = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "external-app.checkpoint-result"
+  durable: { aggregateID: string; seq: EventSeq; version: 1 }
+  location?: LocationRef
+  data: { appId: string; result: ExternalAppEventCheckpointOutcome }
+}
+
+export type ExternalAppProgress = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "external-app.progress"
+  location?: LocationRef
+  data: { appId: string; progress: ExternalAppEventProgressTick }
+}
+
 export type SessionStatusUpdated = {
   id: EventID
   created: number
@@ -1963,6 +2046,16 @@ export type FormReplied = {
   type: "form.replied"
   location?: LocationRef
   data: { id: FormID; sessionID: string; answer: FormAnswer2 }
+}
+
+export type ExternalAppStateChanged = {
+  id: EventID
+  created: number
+  metadata?: { [x: string]: any }
+  type: "external-app.state-changed"
+  durable: { aggregateID: string; seq: EventSeq; version: 1 }
+  location?: LocationRef
+  data: { appId: string; snapshot: ExternalAppEventSnapshot }
 }
 
 export type SessionInboxMove = {
@@ -2599,6 +2692,11 @@ export type V2Event =
   | FormReplied
   | FormCancelled
   | WebsearchUpdated
+  | ExternalAppStateChanged
+  | ExternalAppCapabilitiesChanged
+  | ExternalAppBlockageChanged
+  | ExternalAppCheckpointResult
+  | ExternalAppProgress
   | SessionStatusUpdated
   | SessionIdle
   | TuiPromptAppend
