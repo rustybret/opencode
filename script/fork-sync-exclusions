@@ -98,3 +98,4 @@ regenerate: bun.lock
 merge-package-json: package.json
 merge-package-json: packages/*/package.json
 
+keep-deleted: packages/*/script/publish.ts

@@ -27,18 +27,30 @@ const CHANNEL = await (async () => {
   if (env.OPENCODE_CHANNEL) return env.OPENCODE_CHANNEL
   if (env.OPENCODE_BUMP) return "latest"
   if (env.OPENCODE_VERSION && !env.OPENCODE_VERSION.startsWith("0.0.0-")) return "latest"
-  return await $`git branch --show-current`.text().then((x) => x.trim())
+  const branch = await $`git branch --show-current`.text().then((x) => x.trim())
+  if (!branch) return "detached"
+  const channel = branch.replace(/[^a-zA-Z0-9._-]/g, "-")
+  if (/^[a-zA-Z0-9]/.test(channel)) return channel
+  return `branch-${channel}`
 })()
 const IS_PREVIEW = CHANNEL !== "latest"
 
 const VERSION = await (async () => {
   if (env.OPENCODE_VERSION) return env.OPENCODE_VERSION
-  const subPkgPath = path.resolve(import.meta.dir, "../../opencode/package.json")
+  const subPkgPath = path.resolve(import.meta.dir, "../../cli/package.json")
   const subPkg = await Bun.file(subPkgPath).json()
   const base: string = subPkg.version
   const hash = await $`git rev-parse --short=7 HEAD`.text().then((x) => x.trim())
   return `${base}+${hash}`
 })()
+
+function previewBuildNumber() {
+  const runNumber = process.env["GITHUB_RUN_NUMBER"]
+  if (!runNumber) return new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")
+  const runAttempt = process.env["GITHUB_RUN_ATTEMPT"]
+  if (runAttempt && runAttempt !== "1") return `${runNumber}.${runAttempt}`
+  return runNumber
+}
 
 const bot = ["actions-user", "opencode", "opencode-agent[bot]"]
 const teamPath = path.resolve(import.meta.dir, "../../../.github/TEAM_MEMBERS")

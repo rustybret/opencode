@@ -1,17 +1,12 @@
-export * as DurableEventManifest from "./durable-event-manifest"
+export * as DurableEventManifest from "./durable-event-manifest.js"
 
-import { Event } from "./event"
-import { ExternalAppEvent } from "./external-app-event"
-import { SessionEvent } from "./session-event"
-import { SessionV1 } from "./session-v1"
+import { Event } from "./event.js"
+import { ExternalAppEvent } from "./external-app-event.js"
+import { Worktree } from "./worktree.js"
+import { SessionEvent } from "./session-event.js"
 
-export const SessionDurable = {
-  definitions: Event.durable(SessionEvent.DurableDefinitions),
-  schema: SessionEvent.Durable,
-} as const
-
-export const Durable = Event.durable([
-  ...SessionV1.Event.Definitions.filter((definition) => definition.durable !== undefined),
+export const Durable = Event.durableMap([
   ...SessionEvent.DurableDefinitions,
+  Worktree.Event.Resolved,
   ...ExternalAppEvent.DurableDefinitions,
 ])
