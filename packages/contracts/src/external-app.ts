@@ -152,7 +152,7 @@ export const UcsExternalAppConnectParams = Schema.Struct({
 export type UcsExternalAppConnectParams = typeof UcsExternalAppConnectParams.Type
 
 /** The application could not be reached or the connection dropped mid-request. */
-export class UcsExternalAppTransportError extends Schema.TaggedErrorClass<UcsExternalAppTransportError>()(
+export class UcsExternalAppTransportError extends Schema.TaggedError<UcsExternalAppTransportError>()(
   "UcsExternalAppTransportError",
   {
     message: Schema.String,
@@ -161,7 +161,7 @@ export class UcsExternalAppTransportError extends Schema.TaggedErrorClass<UcsExt
 ) {}
 
 /** A request exceeded its deadline. `timeoutMs` is the budget that elapsed. */
-export class UcsExternalAppTimeoutError extends Schema.TaggedErrorClass<UcsExternalAppTimeoutError>()(
+export class UcsExternalAppTimeoutError extends Schema.TaggedError<UcsExternalAppTimeoutError>()(
   "UcsExternalAppTimeoutError",
   {
     message: Schema.String,
@@ -170,7 +170,7 @@ export class UcsExternalAppTimeoutError extends Schema.TaggedErrorClass<UcsExter
 ) {}
 
 /** The application answered, but violated the negotiated protocol contract. */
-export class UcsExternalAppProtocolError extends Schema.TaggedErrorClass<UcsExternalAppProtocolError>()(
+export class UcsExternalAppProtocolError extends Schema.TaggedError<UcsExternalAppProtocolError>()(
   "UcsExternalAppProtocolError",
   {
     message: Schema.String,
@@ -182,7 +182,7 @@ export class UcsExternalAppProtocolError extends Schema.TaggedErrorClass<UcsExte
  * Several candidate instances matched. The adapter refuses to pick one, because
  * guessing could mutate the wrong project.
  */
-export class UcsExternalAppInstanceAmbiguityError extends Schema.TaggedErrorClass<UcsExternalAppInstanceAmbiguityError>()(
+export class UcsExternalAppInstanceAmbiguityError extends Schema.TaggedError<UcsExternalAppInstanceAmbiguityError>()(
   "UcsExternalAppInstanceAmbiguityError",
   {
     message: Schema.String,

@@ -34,7 +34,7 @@ import { createUnityMcpClient, createUnitySuperMcpAdapter, UNITY_SUPERMCP_DEFAUL
 
 const EXIT = { pass: 0, failed: 1, unreachable: 2, hardStop: 3 } as const
 
-const decodeJson = Schema.decodeUnknownOption(Schema.UnknownFromJsonString)
+const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
 
 const endpoint = process.env["UNITY_SUPERMCP_URL"] ?? UNITY_SUPERMCP_DEFAULT_URL
 const mutationAllowed = process.env["LIVE_MUTATION_ALLOW"] === "1"

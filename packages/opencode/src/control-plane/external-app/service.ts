@@ -14,7 +14,7 @@ import { ExternalAppSupervisor } from "./supervisor"
  * problem with plain module-level functions.
  */
 
-export class AlreadyRegisteredError extends Schema.TaggedErrorClass<AlreadyRegisteredError>()(
+export class AlreadyRegisteredError extends Schema.TaggedError<AlreadyRegisteredError>()(
   "ExternalAppAlreadyRegisteredError",
   {
     appId: Schema.String,
