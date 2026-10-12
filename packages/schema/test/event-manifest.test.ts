@@ -148,6 +148,10 @@ describe("public event manifest", () => {
         "session.revert.cleared.1",
         "session.revert.committed.1",
         "worktree.resolved.1",
+        "external-app.state-changed.1",
+        "external-app.capabilities-changed.1",
+        "external-app.blockage-changed.1",
+        "external-app.checkpoint-result.1",
       ].toSorted(),
     )
     expect(SessionEvent.DurableDefinitions).toEqual([
