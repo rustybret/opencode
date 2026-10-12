@@ -200,10 +200,18 @@ function makeProvider<Implementation extends Layer.Any, Items extends readonly A
   tag: T,
 ): Provider<LayerOutput<Implementation>, Layer.Error<Implementation> | Error<Items[number]>, T> {
   if (!Layer.isLayer(input.layer)) throw new Error("A layer node requires an Effect Layer")
+  const name = input.service !== undefined ? input.service.key : input.name
+  for (let i = 0; i < input.deps.length; i++) {
+    if (!input.deps[i]) {
+      throw new Error(
+        `LayerNode.make for "${name}" received undefined dependency at index ${i}. This usually indicates a circular module import.`,
+      )
+    }
+  }
   return new ProviderNode(
     {
       kind: "layer",
-      name: input.service !== undefined ? input.service.key : input.name,
+      name,
       implementation: input.layer,
       dependencies: [...input.deps],
     },
@@ -219,6 +227,13 @@ export function unbound<R, Shape, const T extends Tag>(service: Context.Key<R, S
 export function group<const Items extends readonly AnyGraph[]>(
   dependencies: Items,
 ): Graph<ListOutput<Items>, Error<Items[number]>, GraphTag<Items[number]>> {
+  for (let i = 0; i < dependencies.length; i++) {
+    if (!dependencies[i]) {
+      throw new Error(
+        `LayerNode.group received undefined dependency at index ${i}. This usually indicates a circular module import.`,
+      )
+    }
+  }
   return new GraphValue({ kind: "group", name: "group", dependencies: [...dependencies] })
 }
 
