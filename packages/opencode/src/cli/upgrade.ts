@@ -7,8 +7,8 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 // Checking never installs anything. Updates only happen when the user runs `/update` or `opencode upgrade`.
 export function shouldNotify(input: {
   autoupdate: boolean | "notify" | undefined
-  disabled: boolean
-  always: boolean
+  disabled?: boolean | undefined
+  always?: boolean | undefined
   current: string
   latest: string
 }) {
