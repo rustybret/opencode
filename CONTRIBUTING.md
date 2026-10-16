@@ -183,8 +183,19 @@ With that said, you may want to try these methods, as they might work for you.
 
 | Branch            | Purpose                                                                          |
 | ----------------- | -------------------------------------------------------------------------------- |
-| `opencode-mirror` | Clean mirror of `upstream/dev`. Never commit here.                               |
+| `opencode-mirror` | Clean fast-forward-only mirror of `upstream/v1`. Protected by git hooks.          |
 | `fork/local`      | Customization layer, synced by merging `opencode-mirror` in. All work goes here. |
+
+### Branch protection (local hooks)
+
+`script/fork-git-guards.sh install` copies self-contained hooks into `.git/hooks/` that:
+
+- Block direct commits to `opencode-mirror` and disable rebase on both `opencode-mirror` and `fork/local`.
+- Enforce fast-forward-only updates to `opencode-mirror` via a `reference-transaction` hook.
+- Chain any existing Husky hooks so both layers run.
+- Set the `git sync-upstream` alias to `script/fork-sync.sh`.
+
+Guards are installed automatically by `bun install` (the root `prepare` script) or manually with `bash script/fork-git-guards.sh install`. Run `bash script/fork-git-guards.sh verify` to confirm hooks are in place. These are local accident-prevention hooks, not authoritative security. If a `bun install` on the pristine `opencode-mirror` branch re-selects `.husky/_`, switch back to `fork/local` and rerun the installer to restore the guards.
 
 ### Syncing with upstream
 
@@ -192,7 +203,9 @@ With that said, you may want to try these methods, as they might work for you.
 git sync-upstream
 ```
 
-This repo-local alias (`.git/config`) runs `script/fork-sync.sh`: fetches upstream, fast-forwards `opencode-mirror` to `upstream/dev`, pushes `origin/opencode-mirror`, merges `opencode-mirror` into `fork/local` (creating a merge commit only on divergence), auto-resolves standing exclusions in `script/fork-sync-exclusions` (removing restored workflows/docs and keeping fork deletions permanent), sweeps new upstream files matching exclusions, syncs submodules, runs `bun install`, then pushes `fork/local`. If manual conflicts arise, resolve them, commit (`git commit --no-verify`), then `git push origin fork/local`.
+This repo-local alias runs `script/fork-sync.sh`: fetches `upstream/v1`, fast-forwards `opencode-mirror`, merges into `fork/local`, auto-resolves standing exclusions in `script/fork-sync-exclusions` (removing restored workflows/docs and keeping fork deletions permanent), sweeps new upstream files matching exclusions, and pushes.
+
+**Preconditions.** Sync requires a clean `fork/local` working tree with no ongoing merge, rebase, or cherry-pick. The script never checks out `opencode-mirror`, never resets or aborts in-progress operations, and never discards uncommitted work. If `opencode-mirror` is checked out in another worktree the script refuses rather than mutate it. An existing mid-merge (from a previous interrupted sync) must be reviewed and finished manually, then sync rerun. If manual conflicts arise during a fresh sync, resolve them, commit (`git commit --no-verify`), and push `fork/local`.
 
 ### Building a standalone binary
 

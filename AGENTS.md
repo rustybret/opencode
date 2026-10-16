@@ -1,15 +1,26 @@
 - To regenerate the legacy JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit `src/generated` or `src/generated-effect` directly.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk-next` composes Client, Core, and Server.
-- The default branch in this repo is `dev`.
-- Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
+- The development branch in this fork is `fork/local`. The upstream maintenance line is `upstream/v1` (not `dev` or `v2`).
+- Local `main` ref may not exist; use `fork/local` or `origin/fork/local` for diffs.
 
 ## Fork Development
 
 This repo is a private fork of `anomalyco/opencode` using a **two-branch model**:
 
-- **`opencode-mirror`** — clean mirror of `upstream/dev`. Never commit fork changes here. Updated via `script/fork-sync.sh` (fast-forward only).
+- **`opencode-mirror`** — clean mirror of `upstream/v1`. Never commit fork changes here. Updated via `script/fork-sync.sh` (fast-forward only). Protected by local git hooks that reject direct commits and non-fast-forward updates.
 - **`fork/local`** — the customization layer. All local development happens here.
+
+### Branch protection (local hooks)
+
+`script/fork-git-guards.sh install` copies self-contained hooks into `.git/hooks/` that:
+
+- Block direct commits to `opencode-mirror` and disable rebase on both `opencode-mirror` and `fork/local`.
+- Enforce fast-forward-only updates to `opencode-mirror` via a `reference-transaction` hook.
+- Chain any existing Husky hooks so both layers run.
+- Set the `git sync-upstream` alias to `script/fork-sync.sh`.
+
+Guards are installed automatically by `bun install` (the root `prepare` script) or manually with `bash script/fork-git-guards.sh install`. Run `bash script/fork-git-guards.sh verify` to confirm hooks are in place. These are local accident-prevention hooks, not authoritative security. If a `bun install` on the pristine `opencode-mirror` branch re-selects `.husky/_`, switch back to `fork/local` and rerun the installer to restore the guards.
 
 ### Syncing with upstream
 
@@ -17,7 +28,9 @@ This repo is a private fork of `anomalyco/opencode` using a **two-branch model**
 script/fork-sync.sh
 ```
 
-Future syncs are a single command via `script/fork-sync.sh` (or `git sync-upstream`). It fetches upstream, fast-forwards `opencode-mirror`, merges into `fork/local`, auto-resolves standing exclusions in `script/fork-sync-exclusions` (removing restored workflows/docs and keeping fork deletions permanent), sweeps new upstream files matching exclusions, and pushes. If manual conflicts arise, resolve them, commit (`git commit --no-verify`), and push `fork/local`.
+The `git sync-upstream` alias (installed by the guard script) runs `script/fork-sync.sh`. It fetches upstream, fast-forwards `opencode-mirror` to `upstream/v1`, merges into `fork/local`, auto-resolves standing exclusions in `script/fork-sync-exclusions` (removing restored workflows/docs and keeping fork deletions permanent), sweeps new upstream files matching exclusions, and pushes.
+
+**Preconditions.** Sync requires a clean `fork/local` working tree with no ongoing merge, rebase, or cherry-pick. The script never checks out `opencode-mirror`, never resets or aborts in-progress operations, and never discards uncommitted work. If `opencode-mirror` is checked out in another worktree the script refuses rather than mutate it. An existing mid-merge (from a previous interrupted sync) must be reviewed and finished manually, then sync rerun. If manual conflicts arise during a fresh sync, resolve them, commit (`git commit --no-verify`), and push `fork/local`.
 
 ### Standalone build
 
@@ -32,7 +45,7 @@ Run `bun typecheck` from `packages/opencode` (never `tsc` directly) before build
 
 The canonical distribution pipeline for OpenCode native binaries is fully automated through the Cloudhome cluster:
 
-1. **Hosted ORW (`updates/orw-sync`)**: Hourly in-cluster Kubernetes CronJob tracks upstream releases, AI-merges `upstream/dev` onto `fork/local`, and pushes merge commits.
+1. **Hosted ORW (`updates/orw-sync`)**: Hourly in-cluster Kubernetes CronJob tracks upstream releases, merges `upstream/v1` onto `fork/local`, and pushes merge commits.
 2. **Multi-Arch BuildKit**: In-cluster parallel daemons (`altos-worker-01` amd64 and `sj-b-worker-01` arm64) compile all 5 platform native binaries (`darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `win32-x64`) and attach them to GitHub Releases on `rustybret/opencode`.
 3. **Arcus Manifest Publication**: Cloudhome's `stamp-arcus-manifest.js` job verifies downloaded asset hashes and commits `manifests/opencode/v<version>.json` to `rustybret/arcus`, and `uc-studio` blesses the composition in `arcus-blessed-plugins.json`.
 4. **Local Consumption**: Developer workstations update via `opencode upgrade` / `upgradeFromArcus()` or `arcus pull`.

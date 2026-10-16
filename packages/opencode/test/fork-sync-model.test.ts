@@ -90,6 +90,26 @@ describe("#given the fork sync model", () => {
     expect(script).toContain("export HUSKY=0")
   })
 
+  test("sync pins the canonical source and never checks out mirror", () => {
+    const script = readFileSync(SCRIPT, "utf8")
+    expect(script).toContain('REMOTE="upstream"')
+    expect(script).toContain('BRANCH="v1"')
+    expect(script).not.toMatch(/git\s+(checkout|switch)\s+[^\n]*\$MIRROR_BRANCH/)
+    expect(script).not.toContain("--update-head-ok")
+    expect(script).not.toMatch(/git\s+fetch[^\n]*\+/)
+    expect(script).toContain('git fetch --no-tags . "refs/remotes/$REMOTE/$BRANCH:refs/heads/$MIRROR_BRANCH"')
+  })
+
+  test("sync gates both pushes on verification and includes real-Git safety tests", () => {
+    const script = readFileSync(SCRIPT, "utf8")
+    const gate = script.indexOf("bun turbo typecheck")
+    expect(gate).toBeGreaterThan(0)
+    expect(script).toContain("test/fork-sync-model.test.ts test/fork-sync-safety.test.ts")
+    for (const branch of ["MIRROR_BRANCH", "LOCAL_BRANCH"]) {
+      expect(script.indexOf(`git push --no-verify origin "$${branch}"`)).toBeGreaterThan(gate)
+    }
+  })
+
   test("all patchedDependencies in root package.json reference existing patch files", () => {
     const pkgPath = join(REPO_ROOT, "package.json")
     expect(existsSync(pkgPath)).toBe(true)
