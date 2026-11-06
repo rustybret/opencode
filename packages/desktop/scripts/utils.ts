@@ -86,7 +86,19 @@ export async function downloadCliToResources() {
   if (process.platform === "win32" && process.env.GITHUB_ACTIONS === "true") {
     await $`pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File ../../script/sign-windows.ps1 ${dest}`
   }
-  if (process.platform === "darwin") await $`codesign --force --sign - ${dest}`
+  if (process.platform === "darwin") {
+    let signIdentity = process.env.CODESIGN_IDENTITY
+    if (!signIdentity) {
+      try {
+        const out = await $`security find-identity -v -p codesigning`.quiet().nothrow().text()
+        const match = out.match(/"(Arcus Local Dev|LocalDeveloper|Apple Development:[^"]*)"/)
+        if (match) signIdentity = match[1]
+      } catch {}
+    }
+    signIdentity = signIdentity || "-"
+    const identifier = process.env.CODESIGN_IDENTIFIER || "com.ultracreative.opencode"
+    await $`codesign --force --sign ${signIdentity} --identifier ${identifier} ${dest}`
+  }
 
   console.log(`Copied ${cli.package} to ${dest}`)
 }

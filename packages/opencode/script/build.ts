@@ -205,7 +205,17 @@ for (const item of targets) {
   // Embedding the bundle invalidates the linker's ad-hoc signature, and macOS 27+
   // SIGKILLs binaries with invalid pages. Re-sign ad-hoc; release CI re-signs with Developer ID.
   if (item.os === "darwin" && process.platform === "darwin") {
-    await $`codesign --force --sign - dist/${name}/bin/opencode`
+    let signIdentity = process.env.CODESIGN_IDENTITY
+    if (!signIdentity) {
+      try {
+        const out = await $`security find-identity -v -p codesigning`.quiet().nothrow().text()
+        const match = out.match(/"(Arcus Local Dev|LocalDeveloper|Apple Development:[^"]*)"/)
+        if (match) signIdentity = match[1]
+      } catch {}
+    }
+    signIdentity = signIdentity || "-"
+    const identifier = process.env.CODESIGN_IDENTIFIER || "com.ultracreative.opencode"
+    await $`codesign --force --sign ${signIdentity} --identifier ${identifier} dist/${name}/bin/opencode`
   }
 
   // Smoke test: only run if binary is for current platform
