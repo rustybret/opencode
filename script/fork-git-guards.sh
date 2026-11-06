@@ -150,7 +150,13 @@ hook() {
       input=$(cat; printf '.')
       input=${input%.}
       reference_guard "${1:-}" "$input"
-      printf '%s' "$input" | delegate "$name" "$@"
+      if [[ "${HUSKY:-}" != 0 ]]; then
+        local top
+        top=$(GIT_MASTER=1 git rev-parse --show-toplevel 2>/dev/null || true)
+        if [[ -n "$top" && -x "$top/.husky/_/$name" ]]; then
+          ( trap '' PIPE; printf '%s' "$input" 2>/dev/null || true ) | "$top/.husky/_/$name" "$@"
+        fi
+      fi
       return
       ;;
   esac
